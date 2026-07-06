@@ -1,0 +1,16 @@
+name: chunk_context
+role: fast
+versions:
+  - version: 1
+    changelog: initial — Anthropic-style contextual retrieval; prefix situates a chunk
+      within its document so embeddings/search disambiguate ("revenue" of what, when)
+    template: |
+      Write 1-2 short sentences situating this excerpt within the document, for a search
+      index. Name the document/company and period if visible, and what the excerpt shows
+      (for tables, what is measured, the periods, and the units). Output only the sentences.
+
+      Document: $doc_label
+      Section: $heading
+
+      Excerpt:
+      $excerpt

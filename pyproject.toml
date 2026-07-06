@@ -6,7 +6,9 @@ requires-python = ">=3.12"
 dependencies = [
     "litellm>=1.70",
     "pydantic-settings>=2.4",
+    "pymupdf>=1.28.0",
     "pyyaml>=6.0",
+    "qdrant-client>=1.18.0",
 ]
 
 [dependency-groups]

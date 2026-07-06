@@ -1,0 +1,98 @@
+{
+  "chunks": [
+    {
+      "chunk_id": "doc1:1:0",
+      "doc_id": "doc1",
+      "page": 1,
+      "block_id": 0,
+      "section_id": 0,
+      "type": "title",
+      "heading": "Financial Highlights",
+      "text": "Financial Highlights",
+      "content": "Financial Highlights",
+      "bbox": [
+        72,
+        100,
+        523,
+        180
+      ],
+      "context": ""
+    },
+    {
+      "chunk_id": "doc1:1:1",
+      "doc_id": "doc1",
+      "page": 1,
+      "block_id": 1,
+      "section_id": 0,
+      "type": "text",
+      "heading": "Financial Highlights",
+      "text": "Financial Highlights\nRevenue was 6,303 million (FY25: 5,950 million).",
+      "content": "Revenue was 6,303 million (FY25: 5,950 million).",
+      "bbox": [
+        72,
+        220,
+        523,
+        300
+      ],
+      "context": ""
+    },
+    {
+      "chunk_id": "doc1:1:2",
+      "doc_id": "doc1",
+      "page": 1,
+      "block_id": 2,
+      "section_id": 0,
+      "type": "table",
+      "heading": "Financial Highlights",
+      "text": "Financial Highlights\n| Metric | FY26 | FY25 |\n|---|---|---|\n| Revenue | 6,303 | 5,950 |\n| Operating profit | 1,052 | 985 |",
+      "content": "| Metric | FY26 | FY25 |\n|---|---|---|\n| Revenue | 6,303 | 5,950 |\n| Operating profit | 1,052 | 985 |",
+      "bbox": [
+        72,
+        340,
+        523,
+        420
+      ],
+      "context": ""
+    },
+    {
+      "chunk_id": "doc1:2:0",
+      "doc_id": "doc1",
+      "page": 2,
+      "block_id": 0,
+      "section_id": 1,
+      "type": "text",
+      "heading": "(top)",
+      "text": "Cash generated from operations improved during the year.",
+      "content": "Cash generated from operations improved during the year.",
+      "bbox": [
+        72,
+        100,
+        523,
+        180
+      ],
+      "context": ""
+    }
+  ],
+  "sections": [
+    {
+      "id": 0,
+      "page": 1,
+      "heading": "Financial Highlights",
+      "text": "Financial Highlights\nRevenue was 6,303 million (FY25: 5,950 million).\n| Metric | FY26 | FY25 |\n|---|---|---|\n| Revenue | 6,303 | 5,950 |\n| Operating profit | 1,052 | 985 |",
+      "block_ids": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "id": 1,
+      "page": 2,
+      "heading": "(top)",
+      "text": "Cash generated from operations improved during the year.",
+      "block_ids": [
+        0
+      ]
+    }
+  ]
+}

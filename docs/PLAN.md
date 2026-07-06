@@ -60,7 +60,7 @@ MCP sidecar + Qdrant → Langfuse/eval labs).
 | # | Phase | Definition of done | Status |
 |---|---|---|---|
 | 0 | Scaffold + LLM router + prompt registry + CI | 429-fallback proven by test; prompts load by name@version | ✅ |
-| 1 | Ingestion + chunking (parsers port, tiered OCR w/ resume, contextual+table chunks, Qdrant indexing) | sample 10-K indexed; golden-file chunk tests; rerun skips cached OCR | ⏳ |
+| 1 | Ingestion + chunking (parsers port, tiered OCR w/ resume, contextual+table chunks, Qdrant indexing) | sample 10-K indexed; golden-file chunk tests; rerun skips cached OCR | ✅ e2e: 425-page report → 11.6k chunks/425 tables in 735s; rerun 1.1s (all cached); sparse search page-accurate |
 | 2 | Retrieval (hybrid + rerank + lookup behind protocol) | tier-1 retrieval baseline (hit@k/MRR) recorded in first eval report | ⏳ |
 | 3 | Agent port (modular nodes, structured citations + cite-check from day one, checkpointer, guards, API+UI) | node unit tests; answer parity spot-check vs old repo | ⏳ |
 | 4 | Observability (Langfuse traces + prompt links + cost) | full node-by-node trace visible for a YoY-margin question | ⏳ |

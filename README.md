@@ -8,8 +8,11 @@ LangGraph multi-agent core · hybrid RAG (Qdrant + Cohere rerank) · MCP retriev
 async ingestion · Langfuse observability + versioned prompts · evaluated against
 **FinRAGBench-V** (EMNLP 2025) with an independent Gemini judge.
 
-> **Status: Phase 0** — scaffold, LLM role-router with fallback chains, versioned prompt
-> registry, CI. Roadmap: [docs/PLAN.md](docs/PLAN.md). Prior art being migrated:
+> **Status: Phase 1** — ingestion + chunking done: text-layer parser (exact figures),
+> cloud-OCR path with per-page resume cache (a 425-page report parses once in ~12 min,
+> reruns in 1 s), structure-aware parent-child + contextual chunking, Qdrant index
+> (sparse works keyless; dense auto-added with a Cohere key).
+> Roadmap: [docs/PLAN.md](docs/PLAN.md). Prior art being migrated:
 > the `financial_analyst_agent` repo (grounded doc-QA with calculator/verifier).
 
 ## Setup

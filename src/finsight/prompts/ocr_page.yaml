@@ -1,0 +1,12 @@
+name: ocr_page
+role: vision
+versions:
+  - version: 1
+    changelog: initial — page-level OCR to structured Markdown for scanned financial docs
+    template: |
+      Transcribe this financial document page to clean Markdown, exactly as printed.
+      - Section headings as Markdown headings ("## Heading").
+      - Tables as Markdown tables ("| a | b |"), preserving EVERY cell, header, and sign.
+      - Body text as plain paragraphs separated by blank lines.
+      - Reproduce all numbers, currencies, and parentheses for negatives exactly.
+      - Do not summarise, translate, or add commentary. Output only the Markdown.

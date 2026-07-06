@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     # per-call retries within one model before falling to the next in the chain
     llm_retries: int = 1
 
+    # ── ingestion ──
+    artifacts_db: str = "data/artifacts.db"   # page-parse + chunk-context cache (OCR runs once)
+    ingest_tables: bool = True                # ruled-table detection in the text-layer parser
+    contextual_chunks: bool = True            # LLM context prefix per chunk (skipped without a key)
+    ocr_dpi: int = 150                        # page render resolution for cloud OCR
+
+    # ── retrieval / vector store ──
+    qdrant_url: str = ""                      # empty -> in-process ":memory:" (keyless dev/tests)
+    qdrant_api_key: str = ""
+    qdrant_collection: str = "finsight_chunks"
+    embed_model: str = "cohere/embed-v4.0"    # dense embeddings (optional — sparse works keyless)
+    embed_dim: int = 1536
+
 
 @lru_cache
 def get_settings() -> Settings:
