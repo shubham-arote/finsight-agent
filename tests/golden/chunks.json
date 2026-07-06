@@ -16,7 +16,9 @@
         523,
         180
       ],
-      "context": ""
+      "context": "",
+      "parent_text": "Financial Highlights\nRevenue was 6,303 million (FY25: 5,950 million).\n| Metric | FY26 | FY25 |\n|---|---|---|\n| Revenue | 6,303 | 5,950 |\n| Operating profit | 1,052 | 985 |",
+      "section_heading": "Financial Highlights"
     },
     {
       "chunk_id": "doc1:1:1",
@@ -34,7 +36,9 @@
         523,
         300
       ],
-      "context": ""
+      "context": "",
+      "parent_text": "Financial Highlights\nRevenue was 6,303 million (FY25: 5,950 million).\n| Metric | FY26 | FY25 |\n|---|---|---|\n| Revenue | 6,303 | 5,950 |\n| Operating profit | 1,052 | 985 |",
+      "section_heading": "Financial Highlights"
     },
     {
       "chunk_id": "doc1:1:2",
@@ -52,7 +56,9 @@
         523,
         420
       ],
-      "context": ""
+      "context": "",
+      "parent_text": "Financial Highlights\nRevenue was 6,303 million (FY25: 5,950 million).\n| Metric | FY26 | FY25 |\n|---|---|---|\n| Revenue | 6,303 | 5,950 |\n| Operating profit | 1,052 | 985 |",
+      "section_heading": "Financial Highlights"
     },
     {
       "chunk_id": "doc1:2:0",
@@ -70,7 +76,9 @@
         523,
         180
       ],
-      "context": ""
+      "context": "",
+      "parent_text": "Cash generated from operations improved during the year.",
+      "section_heading": "(top)"
     }
   ],
   "sections": [

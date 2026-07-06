@@ -46,6 +46,8 @@ class Chunk:
     content: str              # raw block content
     bbox: list[int]
     context: str = ""         # contextual-retrieval prefix (may stay empty)
+    parent_text: str = ""     # the parent section, denormalized so retrieval is stateless
+    section_heading: str = ""
 
     @property
     def embed_text(self) -> str:
@@ -57,7 +59,8 @@ class Chunk:
         return {"chunk_id": self.id, "doc_id": self.doc_id, "page": self.page,
                 "block_id": self.block_id, "section_id": self.section_id,
                 "type": self.type, "heading": self.heading, "text": self.text,
-                "content": self.content, "bbox": self.bbox, "context": self.context}
+                "content": self.content, "bbox": self.bbox, "context": self.context,
+                "parent_text": self.parent_text, "section_heading": self.section_heading}
 
 
 def build_chunks(blocks: list[Block], doc_id: str, default_page: int = 1
@@ -105,6 +108,13 @@ def build_chunks(blocks: list[Block], doc_id: str, default_page: int = 1
         sec.block_ids.append(b.id)
         text = f"{heading}\n{content}" if heading else content
         chunks.append(child(b, text, content, page, cur_sec))
+
+    # denormalize parents into children (small-to-big without a second store lookup)
+    for c in chunks:
+        if c.section_id is not None:
+            sec = sections[c.section_id]
+            c.parent_text = sec.text[:1500]
+            c.section_heading = sec.heading
     return chunks, sections
 
 

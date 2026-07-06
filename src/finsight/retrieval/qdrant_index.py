@@ -63,14 +63,30 @@ class QdrantIndex:
             self.client.upsert(self.collection, points[i:i + batch])
         return len(points)
 
-    # ── read (Phase 1: sparse-first; hybrid fusion arrives in Phase 2) ──────
-    def search(self, query: str, k: int = 6, doc_id: str | None = None) -> list[dict]:
-        flt = (models.Filter(must=[models.FieldCondition(
-                   key="doc_id", match=models.MatchValue(value=doc_id))])
-               if doc_id else None)
-        idxs, vals = sparse_counts(query)
+    # ── read ────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _filter(doc_id: str | None):
+        return (models.Filter(must=[models.FieldCondition(
+                    key="doc_id", match=models.MatchValue(value=doc_id))])
+                if doc_id else None)
+
+    def _query(self, vector, using: str, n: int, doc_id: str | None) -> list[dict]:
         res = self.client.query_points(
-            self.collection,
-            query=models.SparseVector(indices=idxs, values=vals),
-            using="sparse", query_filter=flt, limit=k, with_payload=True)
+            self.collection, query=vector, using=using,
+            query_filter=self._filter(doc_id), limit=n, with_payload=True)
         return [{**p.payload, "score": p.score} for p in res.points]
+
+    def sparse_candidates(self, query: str, n: int = 30, doc_id: str | None = None) -> list[dict]:
+        idxs, vals = sparse_counts(query)
+        if not idxs:
+            return []
+        return self._query(models.SparseVector(indices=idxs, values=vals), "sparse", n, doc_id)
+
+    def dense_candidates(self, query: str, n: int = 30, doc_id: str | None = None) -> list[dict]:
+        if not self.embedder:
+            return []
+        return self._query(self.embedder.embed_query(query), "dense", n, doc_id)
+
+    def search(self, query: str, k: int = 6, doc_id: str | None = None) -> list[dict]:
+        """Plain sparse search (CLI / debugging). The full stack is retrieval.hybrid."""
+        return self.sparse_candidates(query, n=k, doc_id=doc_id)

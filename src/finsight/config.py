@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     qdrant_collection: str = "finsight_chunks"
     embed_model: str = "cohere/embed-v4.0"    # dense embeddings (optional — sparse works keyless)
     embed_dim: int = 1536
+    rerank_model: str = "cohere/rerank-v3.5"  # cross-encoder (optional — lexical fallback)
 
 
 @lru_cache

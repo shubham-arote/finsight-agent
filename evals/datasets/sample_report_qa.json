@@ -1,0 +1,31 @@
+{
+  "document": "samples/make_sample_pdf.py (build) — 6-page synthetic annual report",
+  "notes": "pages are 1-based; in-scope questions carry expected pages, out-of-scope carry [] (abstain expected — used from Phase 5 on)",
+  "questions": [
+    {"q": "What was total revenue in FY26?", "a": "6,303 million pounds", "pages": [3, 4]},
+    {"q": "What was operating profit in FY26?", "a": "1,052 million pounds", "pages": [4]},
+    {"q": "What were net assets at the period end?", "a": "1,430 million pounds", "pages": [5]},
+    {"q": "What total dividend per share was recommended for the year?", "a": "140 pence", "pages": [2]},
+    {"q": "What was profit before tax in FY26?", "a": "1,011 million pounds", "pages": [3, 4]},
+    {"q": "What was the effective tax rate for the year?", "a": "23.8%", "pages": [6]},
+    {"q": "How much was capital expenditure?", "a": "168 million pounds", "pages": [6]},
+    {"q": "What was the operating margin?", "a": "16.7%", "pages": [3]},
+    {"q": "What were total assets in FY26?", "a": "4,520 million pounds", "pages": [5]},
+    {"q": "What was cost of sales in FY26?", "a": "4,001 million pounds", "pages": [4]},
+    {"q": "What was profit after tax in FY26?", "a": "770 million pounds", "pages": [4]},
+    {"q": "What were earnings per share?", "a": "712 pence", "pages": [3]},
+    {"q": "By how much did revenue grow year on year?", "a": "5.9%", "pages": [3]},
+    {"q": "What were current assets in FY26?", "a": "1,980 million pounds", "pages": [5]},
+    {"q": "What was gross profit in FY26?", "a": "2,302 million pounds", "pages": [4]},
+    {"q": "What was revenue in the prior year, FY25?", "a": "5,952 million pounds", "pages": [4]},
+    {"q": "What were total liabilities in FY26?", "a": "3,090 million pounds", "pages": [5]},
+    {"q": "What was profit before tax in the prior year, FY25?", "a": "933 million pounds", "pages": [4]},
+    {"q": "By how much did net assets change year on year?", "a": "increased by 150 million pounds (1,430 vs 1,280)", "pages": [5]},
+    {"q": "Did operating profit rise or fall versus the prior year, and by roughly how much?", "a": "rose by about 67 million pounds (1,052 vs 985)", "pages": [4]},
+    {"q": "Approximately what was the gross profit margin in FY26?", "a": "about 36.5% (2,302 / 6,303)", "pages": [4]},
+    {"q": "Who is the chief executive officer?", "a": null, "pages": []},
+    {"q": "What was the company's share price at year end?", "a": null, "pages": []},
+    {"q": "How many employees does the company have?", "a": null, "pages": []},
+    {"q": "What is the company's carbon emissions reduction target?", "a": null, "pages": []}
+  ]
+}
