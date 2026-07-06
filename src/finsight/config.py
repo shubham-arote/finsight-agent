@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     embed_dim: int = 1536
     rerank_model: str = "cohere/rerank-v3.5"  # cross-encoder (optional — lexical fallback)
 
+    # ── agent ──
+    checkpoint: str = "memory"                # conversation memory: memory | sqlite | off
+    checkpoint_db: str = "data/checkpoints.db"
+
 
 @lru_cache
 def get_settings() -> Settings:

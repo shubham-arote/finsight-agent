@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Citation-grounded financial document agent — LangGraph, hybrid RAG, verified arithmetic"
 requires-python = ">=3.12"
 dependencies = [
+    "langgraph>=1.2.7",
+    "langgraph-checkpoint-sqlite>=3.1.0",
     "litellm>=1.70",
     "pydantic-settings>=2.4",
     "pymupdf>=1.28.0",
