@@ -1,0 +1,15 @@
+name: contextualize
+role: fast
+versions:
+  - version: 1
+    changelog: ported from ocr-pipeline app/agent/graph.py (_contextualize)
+    template: |
+      Rewrite the user's latest message as a single standalone question that includes any
+      context it refers to (subjects, periods, names) from the conversation. If it is already
+      self-contained, return it unchanged. Output only the question.
+
+      $conversation
+
+      Latest message: $user_question
+
+      Standalone question:

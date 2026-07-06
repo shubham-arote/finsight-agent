@@ -1,0 +1,18 @@
+name: calculate_expression
+role: fast
+versions:
+  - version: 1
+    changelog: ported from ocr-pipeline app/agent/graph.py (_calculate); output is parsed
+      by the AST-whitelist safe_eval, never executed
+    template: |
+      From the Context, write a SINGLE arithmetic expression of plain numbers that answers
+      the Question (for example (985-1052)/1052*100 ). Use ONLY digits, + - * / ( ) and a
+      decimal point — no words, no variables, no units. If no calculation is needed, reply
+      NONE.
+
+      Context:
+      $context
+
+      Question: $question
+
+      Expression:

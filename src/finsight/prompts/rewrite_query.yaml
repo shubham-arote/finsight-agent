@@ -1,0 +1,10 @@
+name: rewrite_query
+role: fast
+versions:
+  - version: 1
+    changelog: ported from ocr-pipeline app/agent/graph.py (_rewrite)
+    template: |
+      Rewrite this question as a concise keyword search query for a financial document.
+      Output only the query.
+
+      $question
