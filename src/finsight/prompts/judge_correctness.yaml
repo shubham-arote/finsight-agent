@@ -1,0 +1,18 @@
+name: judge_correctness
+role: judge
+versions:
+  - version: 1
+    changelog: initial — LLM-as-judge correctness vs a reference answer (week-5 lab-3
+      pattern); judge role is an independent model family (Gemini / Vertex) from the
+      answering models
+    template: |
+      You are grading a financial document-QA system. Decide whether the Answer conveys
+      the same essential fact(s) as the Reference — same figures (rounding to 2 decimals
+      is fine), same direction, same subject. Wording may differ. Extra caveats do not
+      make an answer wrong; a missing or different figure does.
+
+      Question: $question
+      Reference: $reference
+      Answer: $answer
+
+      Reply with exactly one word: correct or incorrect.

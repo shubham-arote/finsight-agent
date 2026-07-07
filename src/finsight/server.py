@@ -138,6 +138,13 @@ def page_blocks(doc_id: str, n: int):
             "blocks": [block_to_dict(b) for b in blocks]}
 
 
+@app.get("/api/traces")
+def api_traces(n: int = 20):
+    """Recent agent traces (task, grades, retrieval, computation, claims, latency)."""
+    from . import obs
+    return {"traces": obs.recent(n), "langfuse": obs.enabled()}
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "docs": len(documents.DOCS),

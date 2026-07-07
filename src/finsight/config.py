@@ -62,6 +62,19 @@ class Settings(BaseSettings):
     checkpoint: str = "memory"                # conversation memory: memory | sqlite | off
     checkpoint_db: str = "data/checkpoints.db"
 
+    # ── Google Vertex AI (the scale path — week3 reference pattern: ADC auth) ──
+    # Set GOOGLE_CLOUD_PROJECT (+ `gcloud auth application-default login` or a service
+    # account) and put vertex_ai/* models in the role chains, e.g.
+    # LLM_JUDGE=vertex_ai/gemini-2.5-flash — production quotas for large eval runs.
+    google_cloud_project: str = ""
+    vertex_location: str = "us-central1"
+
+    # ── observability (Langfuse optional; JSONL always) ──
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+    traces_path: str = "logs/traces.jsonl"
+
 
 @lru_cache
 def get_settings() -> Settings:

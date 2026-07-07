@@ -19,11 +19,15 @@ from typing import Iterator
 
 from langgraph.graph import END, START, StateGraph
 
+from .. import obs
 from ..config import settings
-from ..llm import LLMRouter
+from ..llm import LLMRouter, prompts
 from ..retrieval.base import Retriever
 from . import nodes
 from .state import MAX_ATTEMPTS, Deps, RAGState
+
+_PROMPTS_IN_PLAY = ("contextualize", "grade", "rewrite_query",
+                    "calculate_expression", "generate_answer")
 
 
 def _get_checkpointer():
@@ -84,24 +88,68 @@ class AgentEngine:
         return "rewrite"
 
     # ── run ─────────────────────────────────────────────────────────────────
+    def _config(self, thread_id: str | None) -> dict:
+        cfg: dict = {"configurable": {"thread_id": thread_id or uuid.uuid4().hex}}
+        callbacks = obs.graph_callbacks()               # Langfuse span-per-node (optional)
+        if callbacks:
+            cfg["callbacks"] = callbacks
+        return cfg
+
     def run_streaming(self, question: str, thread_id: str | None = None) -> Iterator[dict]:
         init: RAGState = {"user_question": question, "question": question,
                           "original_question": question, "attempts": 0}
-        config = {"configurable": {"thread_id": thread_id or uuid.uuid4().hex}}
         yield {"type": "agent_start", "question": question, "mode": self.mode}
         t0 = time.time()
-        for update in self.graph.stream(init, config=config, stream_mode="updates"):
+        trace = {"question": question, "mode": self.mode, "task": "qa", "attempts": 0,
+                 "grades": [], "rewrites": [], "retrieved": [], "computation": None,
+                 "claims": 0, "unverified": [], "injection_flags": [], "answer": "",
+                 "prompt_versions": {n: prompts.get(n).id for n in _PROMPTS_IN_PLAY}}
+        for update in self.graph.stream(init, config=self._config(thread_id),
+                                        stream_mode="updates"):
             for node, delta in update.items():
+                self._record(trace, node, delta or {})
                 ev = self._event(node, delta or {})
                 if ev:
                     yield ev
-        yield {"type": "agent_done", "latency_s": round(time.time() - t0, 2)}
+        trace["latency_s"] = round(time.time() - t0, 2)
+        obs.log_trace(trace)
+        yield {"type": "agent_done", "latency_s": trace["latency_s"]}
+
+    @staticmethod
+    def _record(trace: dict, node: str, d: dict) -> None:
+        if node == "supervise":
+            trace["task"] = d.get("task", trace["task"])
+        elif node == "retrieve":
+            trace["attempts"] = d.get("attempts", trace["attempts"])
+            trace["retrieved"] = [{"page": c.get("page"), "score": round(c.get("score", 0), 3),
+                                   "exact": c.get("exact", False)}
+                                  for c in d.get("retrieved", [])[:6]]
+        elif node == "grade":
+            trace["grades"].append(d.get("grade"))
+        elif node == "rewrite":
+            trace["rewrites"].append(d.get("question"))
+        elif node == "calculate":
+            trace["computation"] = d.get("computation")
+        elif node == "generate":
+            trace["answer"] = (d.get("answer") or "")[:300]
+            trace["claims"] = len(d.get("claims") or [])
+            trace["injection_flags"] = d.get("injection_flags", [])
+        elif node == "cite_check":
+            trace["unverified"] = d.get("unverified", [])
 
     def run(self, question: str, thread_id: str | None = None) -> dict:
-        config = {"configurable": {"thread_id": thread_id or uuid.uuid4().hex}}
-        return self.graph.invoke(
+        out = self.graph.invoke(
             {"user_question": question, "question": question,
-             "original_question": question, "attempts": 0}, config=config)
+             "original_question": question, "attempts": 0},
+            config=self._config(thread_id))
+        obs.log_trace({"question": question, "mode": self.mode,
+                       "task": out.get("task"), "attempts": out.get("attempts"),
+                       "grades": [out.get("grade")], "computation": out.get("computation"),
+                       "claims": len(out.get("claims") or []),
+                       "unverified": out.get("unverified", []),
+                       "answer": (out.get("answer") or "")[:300],
+                       "prompt_versions": {n: prompts.get(n).id for n in _PROMPTS_IN_PLAY}})
+        return out
 
     @staticmethod
     def _event(node: str, d: dict) -> dict | None:

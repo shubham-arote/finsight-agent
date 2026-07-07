@@ -21,6 +21,9 @@ MCP sidecar + Qdrant → Langfuse/eval labs).
 1. **Rate limits** → `llm/router.py`: role-based chains (`fast/answer/vision/judge`),
    fallback on 429/5xx with cooldown, keys optional. Judge = Gemini only (independent
    family; also the cloud-deploy judge — user decision 2026-07-06).
+   **Scale path (user decision 2026-07-07): Google Vertex AI** — `vertex_ai/*` models in
+   the same chains, ADC auth (week3 pattern: GOOGLE_CLOUD_PROJECT + service account).
+   Free AI-Studio Gemini locally; Vertex quotas for large eval runs / GCP deploy.
 2. **Parsing** → born-digital: PyMuPDF text layer; scanned: cloud OCR via `vision` chain,
    per-page queue + backoff + persisted page artifacts (OCR runs once, resumable).
    Docling = optional local tier, never default, never in the lean image.
@@ -63,8 +66,8 @@ MCP sidecar + Qdrant → Langfuse/eval labs).
 | 1 | Ingestion + chunking (parsers port, tiered OCR w/ resume, contextual+table chunks, Qdrant indexing) | sample 10-K indexed; golden-file chunk tests; rerun skips cached OCR | ✅ e2e: 425-page report → 11.6k chunks/425 tables in 735s; rerun 1.1s (all cached); sparse search page-accurate |
 | 2 | Retrieval (hybrid + rerank + lookup behind protocol) | tier-1 retrieval baseline (hit@k/MRR) recorded in first eval report | ✅ keyless baseline: hit@5 100%, MRR 0.902 (21 Qs, sample report); gate in test_retrieval floors it at 90%/0.70 |
 | 3 | Agent port (modular nodes, structured citations + cite-check from day one, checkpointer, guards, API+UI) | node unit tests; answer parity spot-check vs old repo | ✅ complete — core (63 tests, CLI e2e) + FastAPI server + split-view UI, browser-verified (upload→ask→cited answer→click-to-highlight); 68 tests |
-| 4 | Observability (Langfuse traces + prompt links + cost) | full node-by-node trace visible for a YoY-margin question | ⏳ |
-| 5 | Eval harness (3 tiers + FinRAGBench-V subset adapter) | honest baseline report committed; CI fails on faithfulness/citation regression | ⏳ |
+| 4 | Observability (Langfuse traces + prompt links + cost) | full node-by-node trace visible for a YoY-margin question | ✅ code (JSONL always + Langfuse via litellm callback + graph CallbackHandler; prompt@version per trace; /api/traces) — dashboard screenshot pending Langfuse keys |
+| 5 | Eval harness (3 tiers + FinRAGBench-V subset adapter) | honest baseline report committed; CI fails on faithfulness/citation regression | 🔶 5a done: full-agent eval (abstain/citation-hit/verified/claims + Gemini-or-Vertex judge), report committed (offline: abstain 75%*, cite-hit 90%, verified 100%), CI-gated · ⏳ 5b: FinRAGBench-V adapter |
 | 6 | MCP sidecar + ingest worker + docker-compose | `docker compose up` → upload → ask → cited verified answer | ⏳ |
 | 7 | GCP deploy + polish (Cloud Run sidecar, Pub/Sub, GCS, Cloud SQL, CD, README/architecture/demo) | live URL; README leads with eval numbers + trace screenshot | ⏳ |
 

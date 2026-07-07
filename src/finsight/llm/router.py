@@ -38,6 +38,9 @@ _PROVIDER_KEY_ATTR = {
     "gemini": "gemini_api_key",
     "openrouter": "openrouter_api_key",
     "cohere": "cohere_api_key",
+    # Vertex AI authenticates via ADC, not an api key — "has key" = project configured.
+    # This is the scale path: same chains, production quotas (e.g. for large eval runs).
+    "vertex_ai": "google_cloud_project",
 }
 
 ROLES = ("fast", "answer", "vision", "judge")
@@ -98,8 +101,8 @@ class LLMRouter:
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    api_key=self._key(model),
                     num_retries=self.settings.llm_retries,
+                    **self._auth_kwargs(model),
                     **kwargs,
                 )
                 return resp.choices[0].message.content or ""
@@ -123,6 +126,13 @@ class LLMRouter:
 
     def _key(self, model: str) -> str:
         return getattr(self.settings, _PROVIDER_KEY_ATTR[self._provider(model)])
+
+    def _auth_kwargs(self, model: str) -> dict:
+        """Provider auth: api_key for keyed providers; project+location (ADC) for Vertex."""
+        if self._provider(model) == "vertex_ai":
+            return {"vertex_project": self.settings.google_cloud_project,
+                    "vertex_location": self.settings.vertex_location}
+        return {"api_key": self._key(model)}
 
 
 def _parse(chain: str) -> list[str]:
