@@ -1,5 +1,9 @@
 # finsight app — Cloud Run multi-container service (week-4 sidecar pattern):
-#   agent container (ingress, port 8000)  ──localhost──▶  mcp sidecar (retrieval, :3000)
+#   agent (ingress :8000) ──localhost──▶ mcp sidecar (:3000) ──▶ qdrant sidecar (:6333)
+# Demo configuration: Qdrant runs as an in-service container (ephemeral across
+# scale-to-zero — fine for a portfolio demo). For persistence + the Pub/Sub ingest
+# worker, switch QDRANT_URL to a Qdrant Cloud cluster via Secret Manager (see deploy.md).
+# Vision + judge run on VERTEX AI Gemini via the service account — no API key.
 # Deploy:  envsubst < service-app.yaml | gcloud run services replace - --region=$REGION
 # Requires env: PROJECT_ID, IMAGE (full Artifact Registry tag), SA_EMAIL
 
@@ -14,8 +18,8 @@ spec:
     metadata:
       annotations:
         run.googleapis.com/execution-environment: gen2
-        autoscaling.knative.dev/maxScale: "2"          # cost guard (free-tier project)
-        run.googleapis.com/container-dependencies: '{"agent":["mcp"]}'
+        autoscaling.knative.dev/maxScale: "2"          # cost guard
+        run.googleapis.com/container-dependencies: '{"agent":["mcp"],"mcp":["qdrant"]}'
     spec:
       serviceAccountName: ${SA_EMAIL}
       containers:
@@ -26,39 +30,51 @@ spec:
           env:
             - name: MCP_SERVER_URL
               value: "http://localhost:3000/mcp/"
-            - name: CHECKPOINT
-              value: "memory"                          # Cloud SQL checkpointer = later
-            - name: GOOGLE_CLOUD_PROJECT
-              value: "${PROJECT_ID}"
+            - name: QDRANT_URL
+              value: "http://localhost:6333"
             - name: QDRANT_COLLECTION
               value: "finsight_chunks"
-            - name: QDRANT_URL
-              valueFrom: {secretKeyRef: {name: QDRANT_URL, key: latest}}
-            - name: QDRANT_API_KEY
-              valueFrom: {secretKeyRef: {name: QDRANT_API_KEY, key: latest}}
+            - name: CHECKPOINT
+              value: "memory"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "${PROJECT_ID}"
+            - name: LLM_VISION                        # Vertex via SA — no Gemini API key
+              value: "vertex_ai/gemini-2.5-flash"
+            - name: LLM_JUDGE
+              value: "vertex_ai/gemini-2.5-flash"
             - name: GROQ_API_KEY
               valueFrom: {secretKeyRef: {name: GROQ_API_KEY, key: latest}}
-            - name: GEMINI_API_KEY
-              valueFrom: {secretKeyRef: {name: GEMINI_API_KEY, key: latest}}
             - name: COHERE_API_KEY
               valueFrom: {secretKeyRef: {name: COHERE_API_KEY, key: latest}}
           resources:
             limits: {memory: 1Gi, cpu: "1"}
 
-        # retrieval sidecar — same image, MCP entrypoint, localhost-only (no port mapping)
+        # retrieval sidecar — same image, MCP entrypoint, localhost-only
         - name: mcp
           image: ${IMAGE}
           command: ["python", "-m", "finsight.mcp_server.main"]
           env:
             - name: MCP_PORT
               value: "3000"
+            - name: QDRANT_URL
+              value: "http://localhost:6333"
             - name: QDRANT_COLLECTION
               value: "finsight_chunks"
-            - name: QDRANT_URL
-              valueFrom: {secretKeyRef: {name: QDRANT_URL, key: latest}}
-            - name: QDRANT_API_KEY
-              valueFrom: {secretKeyRef: {name: QDRANT_API_KEY, key: latest}}
             - name: COHERE_API_KEY
               valueFrom: {secretKeyRef: {name: COHERE_API_KEY, key: latest}}
           resources:
             limits: {memory: 512Mi, cpu: "1"}
+          startupProbe:                       # required: agent depends_on this container
+            tcpSocket: {port: 3000}
+            periodSeconds: 5
+            failureThreshold: 30
+
+        # vector store sidecar (demo: ephemeral; swap for Qdrant Cloud in production)
+        - name: qdrant
+          image: qdrant/qdrant:latest
+          resources:
+            limits: {memory: 512Mi, cpu: "1"}
+          startupProbe:                       # required: mcp depends_on this container
+            tcpSocket: {port: 6333}
+            periodSeconds: 5
+            failureThreshold: 30
