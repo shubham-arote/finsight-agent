@@ -43,9 +43,11 @@ class IngestResult:
 
 
 def parse_pdf(data: bytes, *, router: LLMRouter | None = None,
-              store: ArtifactStore | None = None, parser: str = "auto"
+              store: ArtifactStore | None = None, parser: str = "auto",
+              on_page=None
               ) -> tuple[str, str, list[list[Block]], list[tuple[float, float]], int]:
-    """Parse every page (cache-aware). Returns (hash, parser, pages_blocks, sizes, n_cached)."""
+    """Parse every page (cache-aware). Returns (hash, parser, pages_blocks, sizes, n_cached).
+    `on_page(done, total)` is called after each page — progress for background ingestion."""
     h = doc_hash(data)
     doc = fitz.open(stream=data, filetype="pdf")
     n = len(doc)
@@ -67,14 +69,16 @@ def parse_pdf(data: bytes, *, router: LLMRouter | None = None,
         if saved is not None:
             pages_blocks.append([block_from_dict(d) for d in saved])
             cached += 1
-            continue
-        if parser == "textlayer":
-            blocks = textlayer.extract_page(doc[i], i + 1, relation)
         else:
-            blocks = cloud_ocr.extract_page(doc[i], i + 1, router)
-        if store:
-            store.save_page(h, i + 1, parser, [block_to_dict(b) for b in blocks])
-        pages_blocks.append(blocks)
+            if parser == "textlayer":
+                blocks = textlayer.extract_page(doc[i], i + 1, relation)
+            else:
+                blocks = cloud_ocr.extract_page(doc[i], i + 1, router)
+            if store:
+                store.save_page(h, i + 1, parser, [block_to_dict(b) for b in blocks])
+            pages_blocks.append(blocks)
+        if on_page:
+            on_page(i + 1, n)
 
     sizes = [(doc[i].rect.width, doc[i].rect.height) for i in range(n)]
     # furniture marking is document-wide and cheap — recomputed every run (never cached),
@@ -85,12 +89,12 @@ def parse_pdf(data: bytes, *, router: LLMRouter | None = None,
 
 def ingest(data: bytes, *, doc_id: str | None = None, router: LLMRouter | None = None,
            store: ArtifactStore | None = None, parser: str = "auto",
-           contextual: bool | None = None) -> IngestResult:
+           contextual: bool | None = None, on_page=None) -> IngestResult:
     """Full ingestion for one PDF: parse (cached) → chunk → contextual prefixes (cached)."""
     router = router or LLMRouter()
     store = store if store is not None else ArtifactStore()
     h, parser, pages_blocks, sizes, cached = parse_pdf(
-        data, router=router, store=store, parser=parser)
+        data, router=router, store=store, parser=parser, on_page=on_page)
     doc_id = doc_id or h
 
     all_blocks = [b for pb in pages_blocks for b in pb]

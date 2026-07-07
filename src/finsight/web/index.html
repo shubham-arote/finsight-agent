@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>finsight — cited financial document agent</title>
+<link rel="stylesheet" href="/static/styles.css?v=1">
+</head>
+<body>
+<header>
+  <div class="brand">fin<span>sight</span></div>
+  <div class="header-right">
+    <span id="mode-badge" class="badge">…</span>
+    <button id="btn-sample" class="btn ghost">Load sample report</button>
+    <label class="btn primary" for="file-input">Upload PDF</label>
+    <input id="file-input" type="file" accept="application/pdf" hidden>
+  </div>
+</header>
+
+<div id="progress" class="progress hidden"><div id="progress-bar"></div>
+  <span id="progress-label"></span></div>
+
+<main>
+  <section id="viewer" class="panel">
+    <div class="panel-head">
+      <span id="doc-name" class="muted">No document loaded</span>
+      <div class="nav">
+        <button id="pg-prev" class="btn ghost sm">◀</button>
+        <span id="pg-label">–</span>
+        <button id="pg-next" class="btn ghost sm">▶</button>
+      </div>
+    </div>
+    <div id="page-wrap" class="page-wrap">
+      <img id="page-img" alt="" draggable="false">
+      <div id="hl" class="hl hidden"></div>
+    </div>
+  </section>
+
+  <section id="chat" class="panel">
+    <div class="panel-head"><span>Ask the analyst</span>
+      <span class="muted sm-note">answers cite page + block · figures verified</span></div>
+    <div id="log" class="log">
+      <div class="hint">Load the sample report (or upload a PDF), then ask —
+        “What was operating profit in FY26?” · “By how much did revenue grow year on year?”</div>
+    </div>
+    <form id="ask-form" class="ask">
+      <input id="q" autocomplete="off" placeholder="Ask about this document…" disabled>
+      <button id="send" class="btn primary" disabled>Ask</button>
+    </form>
+  </section>
+</main>
+<script src="/static/app.js?v=1"></script>
+</body>
+</html>

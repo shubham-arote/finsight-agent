@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "finsight",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "finsight.server:app", "--port", "8321"],
+      "port": 8321
+    }
+  ]
+}

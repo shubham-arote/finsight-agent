@@ -63,6 +63,13 @@ class LLMRouter:
         """True if at least one model in the role's chain has its provider key set."""
         return any(self._has_key(m) for m in self._chain(role))
 
+    def label(self, role: str) -> str:
+        """First usable model in the role's chain (for status displays), or 'offline'."""
+        for m in self._chain(role):
+            if self._has_key(m):
+                return m
+        return "offline"
+
     def complete(self, role: str, prompt: str, *, system: str | None = None,
                  max_tokens: int = 1024, temperature: float = 0.0, **kwargs) -> str:
         """Run the role's chain until one model answers; return the text content."""

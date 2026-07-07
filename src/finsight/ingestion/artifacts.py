@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS kv (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS blobs (
+    key   TEXT PRIMARY KEY,
+    value BLOB NOT NULL
+);
 """
 
 
@@ -80,3 +84,27 @@ class ArtifactStore:
         with self._lock:
             self._conn.execute("INSERT OR REPLACE INTO kv VALUES (?,?)", (key, value))
             self._conn.commit()
+
+    def keys(self, prefix: str) -> list[str]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT key FROM kv WHERE key LIKE ?", (prefix + "%",)).fetchall()
+        return [r[0] for r in rows]
+
+    # ── blobs (persisted uploads — restart recovery) ────────────────────────
+    def get_blob(self, key: str) -> bytes | None:
+        with self._lock:
+            row = self._conn.execute("SELECT value FROM blobs WHERE key=?", (key,)).fetchone()
+        return bytes(row[0]) if row else None
+
+    def save_blob(self, key: str, value: bytes) -> None:
+        with self._lock:
+            self._conn.execute("INSERT OR REPLACE INTO blobs VALUES (?,?)",
+                               (key, sqlite3.Binary(value)))
+            self._conn.commit()
+
+    def blob_keys(self, prefix: str) -> list[str]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT key FROM blobs WHERE key LIKE ?", (prefix + "%",)).fetchall()
+        return [r[0] for r in rows]
