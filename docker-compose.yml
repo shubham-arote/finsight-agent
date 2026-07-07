@@ -1,0 +1,56 @@
+# finsight local stack — mirrors the week-4 sidecar architecture:
+#   app (agent + API + UI)  ──MCP/Streamable-HTTP──▶  mcp (retrieval sidecar)
+#         │                                                │
+#         └────────────────── qdrant (shared vector store) ┘
+# Provider keys are read from .env (all optional — keyless = extractive answers).
+#   docker compose up --build   →  http://localhost:8000
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mcp:
+    build: .
+    command: ["python", "-m", "finsight.mcp_server.main"]
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-finsight_chunks}
+      - COHERE_API_KEY=${COHERE_API_KEY:-}
+      - MCP_PORT=3000
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-finsight_chunks}
+      - MCP_SERVER_URL=http://mcp:3000/mcp/   # trailing slash: Starlette Mount 307s bare /mcp
+      - CHECKPOINT=sqlite
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - COHERE_API_KEY=${COHERE_API_KEY:-}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      mcp:
+        condition: service_started
+
+volumes:
+  qdrant-data:
+  app-data:

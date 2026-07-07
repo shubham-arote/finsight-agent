@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     checkpoint: str = "memory"                # conversation memory: memory | sqlite | off
     checkpoint_db: str = "data/checkpoints.db"
 
+    # ── MCP retrieval sidecar ──
+    mcp_server_url: str = ""                  # e.g. http://mcp:3000/mcp; empty = in-process
+    mcp_port: int = 3000
+
     # ── Google Vertex AI (the scale path — week3 reference pattern: ADC auth) ──
     # Set GOOGLE_CLOUD_PROJECT (+ `gcloud auth application-default login` or a service
     # account) and put vertex_ai/* models in the role chains, e.g.

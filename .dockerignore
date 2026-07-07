@@ -1,0 +1,15 @@
+# secrets never enter the image — they reach containers via env only
+.env
+
+.git
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+data/
+logs/
+tests/
+evals/
+docs/
+.github/
+.claude/

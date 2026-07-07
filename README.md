@@ -24,7 +24,19 @@ async ingestion · Langfuse observability + versioned prompts · evaluated again
 uv sync                                  # creates .venv, installs deps
 copy .env.example .env                   # add any free-tier key (all optional)
 uv run pytest                            # offline gate — must be green
+uv run uvicorn finsight.server:app --port 8000    # dev server (in-process retrieval)
 ```
+
+## Containerised stack (sidecar MCP architecture)
+
+```bash
+docker compose up --build               # app + MCP retrieval sidecar + Qdrant
+uv run python scripts/verify_stack.py   # e2e proof: upload → ask → cited, verified answer
+```
+
+The agent container talks to the **MCP sidecar** (Streamable HTTP, week-4 pattern) for
+retrieval — `MCP_SERVER_URL` switches the seam; unset it and retrieval runs in-process,
+so the local dev story is unchanged. Both share one Qdrant collection.
 
 ## Design rules
 

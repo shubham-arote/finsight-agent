@@ -68,7 +68,7 @@ MCP sidecar + Qdrant → Langfuse/eval labs).
 | 3 | Agent port (modular nodes, structured citations + cite-check from day one, checkpointer, guards, API+UI) | node unit tests; answer parity spot-check vs old repo | ✅ complete — core (63 tests, CLI e2e) + FastAPI server + split-view UI, browser-verified (upload→ask→cited answer→click-to-highlight); 68 tests |
 | 4 | Observability (Langfuse traces + prompt links + cost) | full node-by-node trace visible for a YoY-margin question | ✅ code (JSONL always + Langfuse via litellm callback + graph CallbackHandler; prompt@version per trace; /api/traces) — dashboard screenshot pending Langfuse keys |
 | 5 | Eval harness (3 tiers + FinRAGBench-V subset adapter) | honest baseline report committed; CI fails on faithfulness/citation regression | 🔶 5a done: full-agent eval (abstain/citation-hit/verified/claims + Gemini-or-Vertex judge), report committed (offline: abstain 75%*, cite-hit 90%, verified 100%), CI-gated · ⏳ 5b: FinRAGBench-V adapter |
-| 6 | MCP sidecar + ingest worker + docker-compose | `docker compose up` → upload → ask → cited verified answer | ⏳ |
+| 6 | MCP sidecar + ingest worker + docker-compose | `docker compose up` → upload → ask → cited verified answer | ✅ verified live: app + MCP sidecar (Streamable HTTP) + Qdrant via compose; scripts/verify_stack.py green (cited answer, figures verified, retrieval over MCP per sidecar logs); volume restart-recovery proven. Pub/Sub ingest worker deferred to Phase 7 (GCP-native) |
 | 7 | GCP deploy + polish (Cloud Run sidecar, Pub/Sub, GCS, Cloud SQL, CD, README/architecture/demo) | live URL; README leads with eval numbers + trace screenshot | ⏳ |
 
 ## Out of scope (portfolio discipline)

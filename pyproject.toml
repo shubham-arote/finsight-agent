@@ -9,6 +9,7 @@ dependencies = [
     "langgraph>=1.2.7",
     "langgraph-checkpoint-sqlite>=3.1.0",
     "litellm>=1.70",
+    "mcp>=1.28.1",
     "pydantic-settings>=2.4",
     "pymupdf>=1.28.0",
     "python-multipart>=0.0.32",
@@ -21,6 +22,7 @@ dependencies = [
 dev = [
     "httpx>=0.28.1",
     "pytest>=8.0",
+    "websockets>=15.0.1",
 ]
 
 [build-system]

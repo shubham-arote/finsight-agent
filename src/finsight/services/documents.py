@@ -79,12 +79,13 @@ def _ingest_worker(doc_id: str, data: bytes) -> None:
 
 
 def get_engine(doc_id: str):
-    """The agent for one document, built once per doc (retriever is doc-scoped)."""
+    """The agent for one document, built once per doc (retriever is doc-scoped;
+    in-process or the MCP sidecar depending on MCP_SERVER_URL)."""
     from ..agent import AgentEngine
-    from ..retrieval import HybridRetriever
+    from ..retrieval import make_retriever
     d = DOCS[doc_id]
     if d.get("engine") is None:
-        d["engine"] = AgentEngine(HybridRetriever(INDEX, doc_id=doc_id), router=ROUTER)
+        d["engine"] = AgentEngine(make_retriever(INDEX, doc_id=doc_id), router=ROUTER)
     return d["engine"]
 
 

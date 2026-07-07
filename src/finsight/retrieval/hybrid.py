@@ -137,6 +137,12 @@ class HybridRetriever:
         return out
 
 
-def make_retriever(index: QdrantIndex, doc_id: str | None = None) -> HybridRetriever:
-    """The retrieval stack for a document (or the whole collection when doc_id is None)."""
+def make_retriever(index: QdrantIndex, doc_id: str | None = None):
+    """The retrieval stack for a document (or the whole collection when doc_id is None).
+    With MCP_SERVER_URL set, retrieval is served by the MCP sidecar; otherwise it runs
+    in-process — the agent sees the same `Retriever` protocol either way."""
+    from ..config import settings
+    if settings.mcp_server_url:
+        from .mcp_client import MCPRetriever
+        return MCPRetriever(settings.mcp_server_url, doc_id=doc_id)
     return HybridRetriever(index, doc_id=doc_id)
