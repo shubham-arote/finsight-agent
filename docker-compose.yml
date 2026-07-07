@@ -51,6 +51,25 @@ services:
       mcp:
         condition: service_started
 
+  # local emulation of the Pub/Sub ingest worker (GCP path); start with:
+  #   docker compose --profile ingest up
+  # then POST a push envelope to :8080/ (see tests/test_ingest_worker.py for the shape)
+  ingest:
+    build: .
+    profiles: ["ingest"]
+    command: ["uvicorn", "finsight.ingest_worker:app", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "8080:8080"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-finsight_chunks}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - COHERE_API_KEY=${COHERE_API_KEY:-}
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
 volumes:
   qdrant-data:
   app-data:

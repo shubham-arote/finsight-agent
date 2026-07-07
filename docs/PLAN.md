@@ -69,7 +69,7 @@ MCP sidecar + Qdrant → Langfuse/eval labs).
 | 4 | Observability (Langfuse traces + prompt links + cost) | full node-by-node trace visible for a YoY-margin question | ✅ code (JSONL always + Langfuse via litellm callback + graph CallbackHandler; prompt@version per trace; /api/traces) — dashboard screenshot pending Langfuse keys |
 | 5 | Eval harness (3 tiers + FinRAGBench-V subset adapter) | honest baseline report committed; CI fails on faithfulness/citation regression | 🔶 5a done: full-agent eval (abstain/citation-hit/verified/claims + Gemini-or-Vertex judge), report committed (offline: abstain 75%*, cite-hit 90%, verified 100%), CI-gated · ⏳ 5b: FinRAGBench-V adapter |
 | 6 | MCP sidecar + ingest worker + docker-compose | `docker compose up` → upload → ask → cited verified answer | ✅ verified live: app + MCP sidecar (Streamable HTTP) + Qdrant via compose; scripts/verify_stack.py green (cited answer, figures verified, retrieval over MCP per sidecar logs); volume restart-recovery proven. Pub/Sub ingest worker deferred to Phase 7 (GCP-native) |
-| 7 | GCP deploy + polish (Cloud Run sidecar, Pub/Sub, GCS, Cloud SQL, CD, README/architecture/demo) | live URL; README leads with eval numbers + trace screenshot | ⏳ |
+| 7 | GCP deploy + polish (Cloud Run sidecar, Pub/Sub, GCS, Cloud SQL, CD, README/architecture/demo) | live URL; README leads with eval numbers + trace screenshot | 🔶 7a done: Pub/Sub ingest worker (week-3 envelope, GCS→ingest→Qdrant, ack/retry semantics tested) + service-app.yaml (week-4 sidecar) + setup.sh/deploy.sh + docs/deploy.md + compose `--profile ingest` emulation · ⏳ 7b: live deploy (needs PROJECT_ID + Qdrant Cloud + secrets), GCS docstore, Cloud SQL checkpointer, CD, README polish |
 
 ## Out of scope (portfolio discipline)
 

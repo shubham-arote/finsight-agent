@@ -1,0 +1,64 @@
+# finsight app — Cloud Run multi-container service (week-4 sidecar pattern):
+#   agent container (ingress, port 8000)  ──localhost──▶  mcp sidecar (retrieval, :3000)
+# Deploy:  envsubst < service-app.yaml | gcloud run services replace - --region=$REGION
+# Requires env: PROJECT_ID, IMAGE (full Artifact Registry tag), SA_EMAIL
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: finsight
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        autoscaling.knative.dev/maxScale: "2"          # cost guard (free-tier project)
+        run.googleapis.com/container-dependencies: '{"agent":["mcp"]}'
+    spec:
+      serviceAccountName: ${SA_EMAIL}
+      containers:
+        - name: agent
+          image: ${IMAGE}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MCP_SERVER_URL
+              value: "http://localhost:3000/mcp/"
+            - name: CHECKPOINT
+              value: "memory"                          # Cloud SQL checkpointer = later
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "${PROJECT_ID}"
+            - name: QDRANT_COLLECTION
+              value: "finsight_chunks"
+            - name: QDRANT_URL
+              valueFrom: {secretKeyRef: {name: QDRANT_URL, key: latest}}
+            - name: QDRANT_API_KEY
+              valueFrom: {secretKeyRef: {name: QDRANT_API_KEY, key: latest}}
+            - name: GROQ_API_KEY
+              valueFrom: {secretKeyRef: {name: GROQ_API_KEY, key: latest}}
+            - name: GEMINI_API_KEY
+              valueFrom: {secretKeyRef: {name: GEMINI_API_KEY, key: latest}}
+            - name: COHERE_API_KEY
+              valueFrom: {secretKeyRef: {name: COHERE_API_KEY, key: latest}}
+          resources:
+            limits: {memory: 1Gi, cpu: "1"}
+
+        # retrieval sidecar — same image, MCP entrypoint, localhost-only (no port mapping)
+        - name: mcp
+          image: ${IMAGE}
+          command: ["python", "-m", "finsight.mcp_server.main"]
+          env:
+            - name: MCP_PORT
+              value: "3000"
+            - name: QDRANT_COLLECTION
+              value: "finsight_chunks"
+            - name: QDRANT_URL
+              valueFrom: {secretKeyRef: {name: QDRANT_URL, key: latest}}
+            - name: QDRANT_API_KEY
+              valueFrom: {secretKeyRef: {name: QDRANT_API_KEY, key: latest}}
+            - name: COHERE_API_KEY
+              valueFrom: {secretKeyRef: {name: COHERE_API_KEY, key: latest}}
+          resources:
+            limits: {memory: 512Mi, cpu: "1"}
