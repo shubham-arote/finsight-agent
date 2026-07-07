@@ -1,0 +1,10 @@
+name: describe_figure
+role: vision
+versions:
+  - version: 1
+    changelog: initial — figure/chart enrichment so visual numbers become retrievable text
+    template: |
+      Describe this chart or figure from a financial document for a search index, in 2-4
+      sentences: what it shows, the categories or axes, and the key values with their
+      units and periods, copied exactly as printed. If it is a photo or decorative image,
+      describe it in one short sentence. Output only the description, no commentary.

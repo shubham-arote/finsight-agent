@@ -23,10 +23,9 @@ def test_extract_page_finds_heading_and_body(sample_pdf_bytes):
 
 
 def test_repeated_footer_marked_as_furniture(sample_pdf_bytes, keyless_router):
-    _, parser, pages_blocks, _, _ = parse_pdf(sample_pdf_bytes, router=keyless_router,
-                                              store=None, parser="auto")
-    assert parser == "textlayer"
-    footers = [b for pb in pages_blocks for b in pb
+    parsed = parse_pdf(sample_pdf_bytes, router=keyless_router, store=None, parser="auto")
+    assert parsed.parser == "textlayer"
+    footers = [b for pb in parsed.pages_blocks for b in pb
                if "Annual Report 2026" in (b.content or "")]
     assert len(footers) == 4
     assert all(b.type in (BlockType.FOOTER, BlockType.HEADER) and b.order is None
@@ -43,12 +42,13 @@ def test_rerun_skips_already_parsed_pages(sample_pdf_bytes, keyless_router, monk
 
     monkeypatch.setattr(pipeline.textlayer, "extract_page", counting)
     store = ArtifactStore(":memory:")
-    _, _, first, _, cached0 = parse_pdf(sample_pdf_bytes, router=keyless_router, store=store)
-    assert calls["n"] == 4 and cached0 == 0
-    _, _, second, _, cached1 = parse_pdf(sample_pdf_bytes, router=keyless_router, store=store)
-    assert calls["n"] == 4 and cached1 == 4          # nothing re-parsed
+    first = parse_pdf(sample_pdf_bytes, router=keyless_router, store=store)
+    assert calls["n"] == 4 and first.cached_pages == 0
+    second = parse_pdf(sample_pdf_bytes, router=keyless_router, store=store)
+    assert calls["n"] == 4 and second.cached_pages == 4      # nothing re-parsed
     # cached round-trip preserves content + geometry
-    assert [b.content for pb in second for b in pb] == [b.content for pb in first for b in pb]
+    assert ([b.content for pb in second.pages_blocks for b in pb]
+            == [b.content for pb in first.pages_blocks for b in pb])
 
 
 def test_scanned_pdf_without_vision_key_fails_cleanly(keyless_router):

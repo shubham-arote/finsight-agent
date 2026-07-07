@@ -19,6 +19,7 @@ from ..config import settings
 from ..llm import LLMRouter
 from .artifacts import ArtifactStore, doc_hash
 from .chunking import Chunk, Section, add_context, build_chunks, doc_label_from_blocks
+from .enrich import enrich_blocks
 from .models import Block, block_from_dict, block_to_dict
 from .parsers import cloud_ocr, textlayer
 
@@ -42,40 +43,62 @@ class IngestResult:
     stats: dict = field(default_factory=dict)
 
 
+@dataclass
+class ParsedDoc:
+    doc_hash: str
+    parser: str                      # textlayer | cloud_ocr | mixed
+    pages_blocks: list[list[Block]]
+    sizes: list[tuple[float, float]]
+    cached_pages: int
+    skipped_pages: list[int]         # scanned pages left empty (no vision key)
+
+
+def _page_has_text(page) -> bool:
+    return len(page.get_text("text").strip()) > 50
+
+
 def parse_pdf(data: bytes, *, router: LLMRouter | None = None,
               store: ArtifactStore | None = None, parser: str = "auto",
-              on_page=None
-              ) -> tuple[str, str, list[list[Block]], list[tuple[float, float]], int]:
-    """Parse every page (cache-aware). Returns (hash, parser, pages_blocks, sizes, n_cached).
-    `on_page(done, total)` is called after each page — progress for background ingestion."""
+              on_page=None) -> ParsedDoc:
+    """Parse every page (cache-aware, routed PER PAGE). Born-digital pages take the exact
+    text-layer path; scanned pages go to cloud OCR — so a filing with a scanned appendix
+    keeps both halves. `on_page(done, total)` reports progress."""
     h = doc_hash(data)
     doc = fitz.open(stream=data, filetype="pdf")
     n = len(doc)
     if n == 0:
         raise IngestError("empty PDF")
+    router = router or LLMRouter()
+    vision_ok = router.available("vision")
+
     if parser == "auto":
-        parser = "textlayer" if textlayer.has_text_layer(doc) else "cloud_ocr"
-    if parser == "cloud_ocr":
-        router = router or LLMRouter()
-        if not router.available("vision"):
-            raise IngestError("scanned PDF needs a vision-capable key "
-                              "(GEMINI_API_KEY or GROQ_API_KEY)")
+        page_parsers = ["textlayer" if _page_has_text(doc[i]) else "cloud_ocr"
+                        for i in range(n)]
+    else:
+        page_parsers = [parser] * n
+    if all(p == "cloud_ocr" for p in page_parsers) and not vision_ok:
+        raise IngestError("scanned PDF needs a vision-capable key "
+                          "(GEMINI_API_KEY or GROQ_API_KEY)")
 
     relation = None
     pages_blocks: list[list[Block]] = []
     cached = 0
-    for i in range(n):
-        saved = store.get_page(h, i + 1, parser) if store else None
+    skipped: list[int] = []
+    for i, pparser in enumerate(page_parsers):
+        saved = store.get_page(h, i + 1, pparser) if store else None
         if saved is not None:
             pages_blocks.append([block_from_dict(d) for d in saved])
             cached += 1
+        elif pparser == "cloud_ocr" and not vision_ok:
+            pages_blocks.append([])                    # mixed doc, no key: keep the rest
+            skipped.append(i + 1)                      # NOT cached — a keyed rerun parses it
         else:
-            if parser == "textlayer":
+            if pparser == "textlayer":
                 blocks = textlayer.extract_page(doc[i], i + 1, relation)
             else:
                 blocks = cloud_ocr.extract_page(doc[i], i + 1, router)
             if store:
-                store.save_page(h, i + 1, parser, [block_to_dict(b) for b in blocks])
+                store.save_page(h, i + 1, pparser, [block_to_dict(b) for b in blocks])
             pages_blocks.append(blocks)
         if on_page:
             on_page(i + 1, n)
@@ -84,20 +107,28 @@ def parse_pdf(data: bytes, *, router: LLMRouter | None = None,
     # furniture marking is document-wide and cheap — recomputed every run (never cached),
     # so cached raw pages and freshly parsed ones are treated identically
     textlayer.mark_repeated_furniture(pages_blocks, sizes)
-    return h, parser, pages_blocks, sizes, cached
+    kinds = set(page_parsers)
+    label = page_parsers[0] if len(kinds) == 1 else "mixed"
+    return ParsedDoc(h, label, pages_blocks, sizes, cached, skipped)
 
 
 def ingest(data: bytes, *, doc_id: str | None = None, router: LLMRouter | None = None,
            store: ArtifactStore | None = None, parser: str = "auto",
-           contextual: bool | None = None, on_page=None) -> IngestResult:
-    """Full ingestion for one PDF: parse (cached) → chunk → contextual prefixes (cached)."""
+           contextual: bool | None = None, enrich: bool | None = None,
+           on_page=None) -> IngestResult:
+    """Full ingestion for one PDF:
+    parse (per-page routed, cached) → VLM enrichment of figures/borderless tables
+    (Gemini-first, cached, capped) → chunk → contextual prefixes (cached)."""
     router = router or LLMRouter()
     store = store if store is not None else ArtifactStore()
-    h, parser, pages_blocks, sizes, cached = parse_pdf(
-        data, router=router, store=store, parser=parser, on_page=on_page)
-    doc_id = doc_id or h
+    parsed = parse_pdf(data, router=router, store=store, parser=parser, on_page=on_page)
+    doc_id = doc_id or parsed.doc_hash
 
-    all_blocks = [b for pb in pages_blocks for b in pb]
+    enrich = settings.enrich_blocks if enrich is None else enrich
+    n_enriched = (enrich_blocks(data, parsed.pages_blocks, router, store)
+                  if enrich else 0)
+
+    all_blocks = [b for pb in parsed.pages_blocks for b in pb]
     chunks, sections = build_chunks(all_blocks, doc_id)
     label = doc_label_from_blocks(all_blocks)
 
@@ -105,12 +136,14 @@ def ingest(data: bytes, *, doc_id: str | None = None, router: LLMRouter | None =
     n_ctx = add_context(chunks, router, store, doc_label=label) if contextual else 0
 
     return IngestResult(
-        doc_id=doc_id, parser=parser, page_count=len(pages_blocks), sizes=sizes,
-        pages_blocks=pages_blocks, chunks=chunks, sections=sections, doc_label=label,
-        contextualized=n_ctx, cached_pages=cached,
+        doc_id=doc_id, parser=parsed.parser, page_count=len(parsed.pages_blocks),
+        sizes=parsed.sizes, pages_blocks=parsed.pages_blocks, chunks=chunks,
+        sections=sections, doc_label=label,
+        contextualized=n_ctx, cached_pages=parsed.cached_pages,
         stats={"blocks": len(all_blocks), "chunks": len(chunks),
                "sections": len(sections),
-               "tables": sum(1 for c in chunks if c.type == "table")})
+               "tables": sum(1 for c in chunks if c.type == "table"),
+               "enriched": n_enriched, "skipped_pages": parsed.skipped_pages})
 
 
 # ── CLI: e2e proof over a real PDF ──────────────────────────────────────────

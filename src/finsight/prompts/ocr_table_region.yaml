@@ -1,0 +1,11 @@
+name: ocr_table_region
+role: vision
+versions:
+  - version: 1
+    changelog: initial — recover row/column structure from borderless (whitespace-aligned)
+      tables the ruled-lines detector cannot see
+    template: |
+      This image is a table region from a financial document. Transcribe it as a Markdown
+      table ("| a | b |"), preserving EVERY cell, header, sign, and parentheses for
+      negatives, exactly as printed. Do not summarise or add commentary. Output only the
+      Markdown table.

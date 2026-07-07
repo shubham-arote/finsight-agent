@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     ingest_tables: bool = True                # ruled-table detection in the text-layer parser
     contextual_chunks: bool = True            # LLM context prefix per chunk (skipped without a key)
     ocr_dpi: int = 150                        # page render resolution for cloud OCR
+    enrich_blocks: bool = True                # VLM (Gemini-first) on figures + borderless tables
+    enrich_max_blocks: int = 40               # per-doc cap on enrichment VLM calls (cost guard)
 
     # ── retrieval / vector store ──
     qdrant_url: str = ""                      # empty -> in-process ":memory:" (keyless dev/tests)

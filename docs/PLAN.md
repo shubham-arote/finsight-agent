@@ -27,6 +27,13 @@ MCP sidecar + Qdrant → Langfuse/eval labs).
 2. **Parsing** → born-digital: PyMuPDF text layer; scanned: cloud OCR via `vision` chain,
    per-page queue + backoff + persisted page artifacts (OCR runs once, resumable).
    Docling = optional local tier, never default, never in the lean image.
+   **Phase 1.5 hardening (user decision 2026-07-07, Gemini-first vision):** routing is
+   PER PAGE (mixed docs keep both halves; scanned pages skipped keyless, parsed on keyed
+   rerun) + **targeted VLM enrichment** — figure blocks and borderless/whitespace tables
+   get their bbox crop sent to the vision chain (Gemini → Groq), content cached by crop
+   hash, capped per doc (ENRICH_MAX_BLOCKS=40) — week-3's visual coverage at ~tens of
+   calls per doc instead of per-page OCR, with block-precise citations preserved.
+   Held in reserve if chart evals lag: multimodal page embeddings as a third RRF signal.
 3. **Chunking** → structure-aware (heading/table boundaries) · parent-child (400–800-tok
    children / ~2k parents) · **contextual retrieval** (LLM 1–2 sentence context prepended
    per chunk at index time, cached) · table-aware (tables whole + NL summary) · metadata:
