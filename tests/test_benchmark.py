@@ -19,17 +19,20 @@ def data_dir(tmp_path_factory, sample_pdf_bytes):
     (root / "queries").mkdir()
     (root / "pdfs").mkdir()
     (root / "pdfs" / "acme_report.pdf").write_bytes(sample_pdf_bytes)
-    queries = [
-        {"query-id": "acme_report.pdf_3_q1", "query": "What was operating profit in FY26?",
+    queries = [                              # real dataset id format: <stem>_<page>.png-<n>
+        {"query-id": "acme_report_3.png-1", "query": "What was operating profit in FY26?",
          "answer": "1,052 million", "category": "Table-Information Extraction",
          "answer_type": "short", "from_pages": [3]},
-        {"query-id": "acme_report.pdf_1_q2", "query": "What was revenue for the year?",
+        {"query-id": "acme_report_1.png-2", "query": "What was revenue for the year?",
          "answer": "6,303 million", "category": "Text Inference",
          "answer_type": "short", "from_pages": 1},                    # int form
-        {"query-id": "missing_doc.pdf_2_q3", "query": "Should be dropped",
+        {"query-id": "acme_report_multipage_1-4.png-3", "query": "Multipage form parses",
+         "answer": "x", "category": "Text-MultiPage", "answer_type": "short",
+         "from_pages": [1, 4]},
+        {"query-id": "missing_doc_2.png-1", "query": "Should be dropped",
          "answer": "x", "category": "Text Inference", "answer_type": "short",
          "from_pages": [2]},                                          # pdf not present
-        {"query-id": "no-pdf-marker", "query": "Malformed id",
+        {"query-id": "malformed id", "query": "Malformed id",
          "answer": "x", "category": "Text Inference", "answer_type": "short"},
     ]
     (root / "queries" / "queries_en.json").write_text(json.dumps(queries), encoding="utf-8")
@@ -38,9 +41,11 @@ def data_dir(tmp_path_factory, sample_pdf_bytes):
 
 def test_load_cases_parses_and_filters(data_dir):
     cases = load_cases(data_dir)
-    assert [c.qid for c in cases] == ["acme_report.pdf_3_q1", "acme_report.pdf_1_q2"]
+    assert [c.qid for c in cases] == ["acme_report_3.png-1", "acme_report_1.png-2",
+                                      "acme_report_multipage_1-4.png-3"]
     assert cases[0].doc_name == "acme_report.pdf" and cases[0].gold_pages == [3]
     assert cases[1].gold_pages == [1]                       # int normalized to list
+    assert cases[2].gold_pages == [1, 4]                    # multipage form
 
 
 def test_sampling_is_seeded(data_dir):
@@ -67,7 +72,7 @@ def test_harness_end_to_end_offline(data_dir, keyless_router, monkeypatch, tmp_p
 
     engine = AgentEngine(HybridRetriever(index), router=keyless_router)
     m = evaluate(cases, engine, keyless_router, k=5)
-    assert m["n"] == 2
+    assert m["n"] == 3
     assert m["hit_at_k"] >= 0.5                           # gold page retrieved
     assert m["correctness"] is None                       # keyless: no judge
     assert m["verified_rate"] == 1.0                      # extractive claims all verified

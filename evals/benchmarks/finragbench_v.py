@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -35,10 +36,21 @@ class BenchCase:
     gold_pages: list[int] = field(default_factory=list)
 
 
-def _doc_from_qid(qid: str) -> str | None:
-    """query-id = '<pdf name>.pdf' + page(s) + suffix -> the pdf name."""
-    idx = qid.lower().find(".pdf")
-    return qid[: idx + 4] if idx > 0 else None
+_QID = re.compile(r"^(?P<stem>.+)_(?:multipage_\d+-\d+|\d+)\.png-\d+$")
+
+
+def _doc_from_qid(qid: str, stems: list[str] | None = None) -> str | None:
+    """query-id = '<pdf stem>_<page>.png-<n>' (or '_multipage_<a>-<b>.png-<n>').
+
+    When the pdfs directory is available, resolve by longest-stem prefix match against
+    the actual files (robust to stems that themselves end in digits); otherwise fall
+    back to the regex parse."""
+    if stems:
+        for stem in stems:                     # pre-sorted longest-first
+            if qid.startswith(stem + "_"):
+                return stem + ".pdf"
+    m = _QID.match(qid)
+    return f"{m.group('stem')}.pdf" if m else None
 
 
 def load_cases(data_dir: str | Path, sample: int | None = None, seed: int = 42,
@@ -46,10 +58,13 @@ def load_cases(data_dir: str | Path, sample: int | None = None, seed: int = 42,
     data_dir = Path(data_dir)
     qfile = data_dir / "queries" / "queries_en.json"
     entries = json.loads(qfile.read_text(encoding="utf-8"))
+    pdf_dir = data_dir / "pdfs"
+    stems = (sorted((p.stem for p in pdf_dir.glob("*.pdf")), key=len, reverse=True)
+             if pdf_dir.exists() else None)
     cases: list[BenchCase] = []
     for e in entries:
         qid = e.get("query-id") or e.get("query_id") or ""
-        doc = _doc_from_qid(qid)
+        doc = _doc_from_qid(qid, stems)
         if not doc or not e.get("query"):
             continue
         if categories and e.get("category") not in categories:
@@ -57,6 +72,8 @@ def load_cases(data_dir: str | Path, sample: int | None = None, seed: int = 42,
         pages = e.get("from_pages") or []
         if isinstance(pages, int):
             pages = [pages]
+        elif isinstance(pages, str):                     # "16" or "1, 4"
+            pages = [int(x) for x in re.findall(r"\d+", pages)]
         cases.append(BenchCase(
             qid=qid, question=e["query"], reference=str(e.get("answer") or ""),
             category=e.get("category", "unknown"),
