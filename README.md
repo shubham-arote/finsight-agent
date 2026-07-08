@@ -1,51 +1,115 @@
-# finsight
+# finsight — a citation-grounded financial document agent
 
-Citation-grounded **financial document agent**: upload filings (born-digital or scanned),
-ask questions, get answers where **every claim cites the exact page + block** and every
-figure is **computed deterministically and verified** — never LLM mental math.
+Upload financial filings (born-digital **or** scanned), ask questions, and get answers where
+**every claim cites the exact page + block it came from** and **every figure is computed
+deterministically and verified** — never LLM mental math, never an untraceable number.
 
-LangGraph multi-agent core · hybrid RAG (Qdrant + Cohere rerank) · MCP retrieval sidecar ·
-async ingestion · Langfuse observability + versioned prompts · evaluated against
-**FinRAGBench-V** (EMNLP 2025) with an independent Gemini judge.
+**LangGraph multi-agent core · hybrid RAG (Qdrant) · MCP retrieval sidecar · Pub/Sub async
+ingestion · Langfuse observability · versioned prompts · evaluated on FinRAGBench-V (EMNLP 2025).**
 
-> **Status: Phase 2** — retrieval stack done: query-typed RRF fusion (sparse + optional
-> Cohere dense), cross-encoder rerank with lexical fallback, deterministic exact-value
-> lookup floated on top, small-to-big parent context — behind the `Retriever` protocol.
-> Baseline (keyless): **hit@5 100% · MRR 0.902** on the labelled sample set, gated in CI
-> ([evals/reports/](evals/reports/)). Phase 1: text-layer parser (exact figures),
-> cloud-OCR with per-page resume cache (425-page report: ~12 min once, 1 s reruns),
-> parent-child + contextual chunking, Qdrant index.
-> Roadmap: [docs/PLAN.md](docs/PLAN.md). Prior art being migrated:
-> the `financial_analyst_agent` repo (grounded doc-QA with calculator/verifier).
+```
+ PDF ──▶ parse (routed PER PAGE)          text layer (exact figures, free)  |  cloud VLM OCR (scanned)
+   │                                      + targeted Gemini enrichment: figures & borderless tables
+   ▼
+ parent-child chunks ──▶ Qdrant           sparse (keyless) + Cohere dense · query-typed RRF
+   │                                      · rerank-v3.5 · deterministic exact-value lookup on top
+   ▼
+ LangGraph agent                          contextualize → supervise → retrieve → grade ─┬─ qa ──────▶ generate
+   │                                              rewrite ↺ (budget)                    └─ calc ▶ AST calculator
+   ▼                                                                                        │
+ cited, VERIFIED answer                   generate → cite_check: JSON claims {text, citations:[{page, block}]},
+   │                                      invented citations dropped, every figure traced to its cited block
+   ▼
+ web UI                                   click a citation → jumps to the page, highlights the exact box
+```
 
-## Setup
+## Why this design
+
+- **Verified arithmetic.** Number questions route to a calculator lane: the LLM emits one
+  arithmetic expression over retrieved figures; an **AST-whitelist evaluator** (never `eval`,
+  security-tested) computes it exactly, and the verifier confirms every input traces to a citation.
+- **Citations are a contract, not decoration.** Generation returns structured JSON claims;
+  citations pointing at evidence that wasn't retrieved are deleted; a deterministic `cite_check`
+  node validates each claim's figures against the *specific blocks it cites* and surfaces
+  failures as a visible caveat. Unverifiable ≠ silently trusted.
+- **Key-optional everything.** No API keys → sparse retrieval + extractive answers; each key
+  (Groq/Gemini/Cohere) upgrades one capability. The full test suite runs offline.
+- **Role-based model routing.** Code asks for `fast | answer | vision | judge`; a LiteLLM
+  router maps each role to a fallback chain (Groq → Gemini → OpenRouter/Cohere) with rate-limit
+  cooldowns. The judge is a **different model family** (Gemini / Vertex AI) from the answering
+  models — no self-grading. On GCP, `vertex_ai/*` models join the same chains via ADC (no keys).
+- **Cost-aware ingestion.** Every parsed page and VLM call is cached by content hash: a 425-page
+  report parses once (~12 min) and reruns in ~1 s; interrupted OCR resumes at the failed page.
+  Vision enrichment targets only figure/borderless-table crops (capped per doc) instead of
+  paying page-image OCR for entire documents.
+
+## Measured, not claimed
+
+Every retrieval/agent change is gated in CI against committed eval reports ([evals/reports/](evals/reports/)).
+
+| Eval (labelled sample set, offline/keyless) | Result |
+|---|---|
+| Retrieval hit@5 / MRR | **100% / 0.902** |
+| Abstain accuracy (out-of-scope refused) | 75% (100% with cloud grading) |
+| Citation hit · verified figures · claim coverage | **90% · 100% · 100%** |
+
+**FinRAGBench-V** (EMNLP 2025, real filings — 539 EN questions / 105 PDFs): the harness
+([evals/run_benchmark.py](evals/run_benchmark.py)) ingests the real source PDFs, scores retrieval
+recall/MRR vs gold pages, **page-level citation precision/recall**, and judge correctness, with
+per-category breakdowns. The committed keyless floor (sparse-only, 25-question sample) is
+**hit@5 17% doc-scoped / 0% corpus-wide** — an honest baseline demonstrating exactly why the
+hybrid stack (dense + rerank) and VLM enrichment exist; keyed runs measure their lift.
+
+## Run it
 
 ```powershell
-uv sync                                  # creates .venv, installs deps
-copy .env.example .env                   # add any free-tier key (all optional)
-uv run pytest                            # offline gate — must be green
-uv run uvicorn finsight.server:app --port 8000    # dev server (in-process retrieval)
+uv sync && copy .env.example .env        # keys optional — everything degrades gracefully
+uv run pytest                            # offline test suite
+uv run uvicorn finsight.server:app --port 8000    # → http://localhost:8000
 ```
 
-## Containerised stack (sidecar MCP architecture)
+**Containerised (sidecar-MCP architecture):**
 
 ```bash
-docker compose up --build               # app + MCP retrieval sidecar + Qdrant
-uv run python scripts/verify_stack.py   # e2e proof: upload → ask → cited, verified answer
+docker compose up --build               # agent + MCP retrieval sidecar + Qdrant
+uv run python scripts/verify_stack.py   # e2e proof: ingest → ask → cited, verified answer
 ```
 
-The agent container talks to the **MCP sidecar** (Streamable HTTP, week-4 pattern) for
-retrieval — `MCP_SERVER_URL` switches the seam; unset it and retrieval runs in-process,
-so the local dev story is unchanged. Both share one Qdrant collection.
+The agent talks to retrieval over **MCP (Streamable HTTP)** when `MCP_SERVER_URL` is set and
+in-process otherwise — same `Retriever` protocol, so the agent can't tell the difference.
 
-## Design rules
+**GCP** (Cloud Run multi-container + GCS→Pub/Sub async ingestion + Secret Manager + Vertex):
+scripted end-to-end in [deploy/gcp/](deploy/gcp/) — see [docs/deploy.md](docs/deploy.md).
 
-- **Key-optional:** every provider key is optional; features degrade, never crash.
-- **Roles, not providers:** code asks for `fast | answer | vision | judge`; the router
-  maps each role to a fallback chain (Groq → Gemini → OpenRouter / Cohere) with
-  rate-limit cooldowns. Judge is Gemini-only — independent from answering models.
-- **No inline prompts:** all prompts are versioned YAML in `src/finsight/prompts/`,
-  loaded by `name@version`, traceable per answer.
-- **Config through `finsight.config.settings` only** — no `os.getenv` elsewhere.
-- **No local ML models** — cloud-first (dev machine constraint); BM25 is the only
-  local compute.
+## Repo map
+
+```
+src/finsight/
+  config.py        single Settings object — the only place env is read
+  llm/             role-based router (fallback chains, cooldowns) · versioned prompt registry
+  prompts/         every prompt as append-only versioned YAML (name@version, changelogs)
+  ingestion/       per-page routed parsers · VLM enrichment · parent-child+contextual chunking
+                   · content-hash artifact cache (parse once, resume free)
+  retrieval/       Retriever protocol · Qdrant hybrid (sparse+dense RRF) · rerank · exact lookup
+                   · MCP client (the same seam, served remotely)
+  agent/           LangGraph nodes (one file each) · AST calculator · verifier · guards
+                   · structured-citation contract (citations.py)
+  mcp_server/      retrieval as an MCP tool (Streamable HTTP sidecar)
+  services/, server.py, web/   doc lifecycle · thin FastAPI · split-view UI w/ click-to-highlight
+  ingest_worker.py Pub/Sub push worker (GCS upload → parse → index)
+  obs.py           JSONL traces (+ optional Langfuse: cost, span-per-node, prompt links)
+evals/             agent eval + retrieval baseline + FinRAGBench-V benchmark harness + reports
+tests/             ~100 offline tests: security suite, golden files, live MCP round-trip, e2e
+deploy/gcp/        Cloud Run multi-container spec + idempotent setup/deploy scripts
+```
+
+## Honest limitations
+
+- Scanned documents get **page-level** citation granularity (OCR yields no per-block geometry);
+  born-digital documents are block-precise.
+- Offline (keyless) mode is extractive and lexical: it can't refuse topic-adjacent unanswerable
+  questions (measured: 75% abstain) or rank long analytical queries well (the FinRAGBench-V floor).
+- The keyless FinRAGBench-V numbers above are the *before* — dense+rerank and judge-scored runs
+  require (free-tier) API keys and are the next committed report.
+- Cloud Run demo config uses an in-service Qdrant (ephemeral); production points `QDRANT_URL`
+  at Qdrant Cloud, and durable conversation state needs the Cloud SQL checkpointer (planned).

@@ -24,7 +24,7 @@ from datetime import date
 from pathlib import Path
 
 from finsight.agent import AgentEngine
-from finsight.ingestion import ArtifactStore, ingest
+from finsight.ingestion import ArtifactStore, IngestError, ingest
 from finsight.llm import LLMRouter
 from finsight.retrieval import HybridRetriever, QdrantIndex
 
@@ -38,10 +38,16 @@ ABSTAIN_MARK = "I couldn't find"
 def build_corpus(data_dir: str, cases: list[BenchCase], router: LLMRouter,
                  store: ArtifactStore, index: QdrantIndex,
                  contextual: bool, enrich: bool) -> dict:
-    stats = {"docs": 0, "pages": 0, "chunks": 0, "enriched": 0, "skipped_pages": 0}
+    stats = {"docs": 0, "pages": 0, "chunks": 0, "enriched": 0, "skipped_pages": 0,
+             "failed_docs": []}
     for doc_name in sorted({c.doc_name for c in cases}):
-        res = ingest(pdf_bytes(data_dir, doc_name), doc_id=doc_name, router=router,
-                     store=store, contextual=contextual, enrich=enrich)
+        try:
+            res = ingest(pdf_bytes(data_dir, doc_name), doc_id=doc_name, router=router,
+                         store=store, contextual=contextual, enrich=enrich)
+        except IngestError as e:               # e.g. fully-scanned PDF, no vision key —
+            stats["failed_docs"].append(doc_name)          # skip + disclose, don't die
+            print(f"  SKIPPED {doc_name}: {e}")
+            continue
         index.index_chunks(res.chunks)
         stats["docs"] += 1
         stats["pages"] += res.page_count
@@ -53,12 +59,14 @@ def build_corpus(data_dir: str, cases: list[BenchCase], router: LLMRouter,
     return stats
 
 
-def evaluate(cases: list[BenchCase], engine: AgentEngine, router: LLMRouter,
+def evaluate(cases: list[BenchCase], engine_for, router: LLMRouter,
              k: int = 5) -> dict:
+    """`engine_for(case)` returns the agent to use — corpus-wide (one engine) or
+    doc-scoped (one per source document, the oracle-document setting)."""
     rows = []
     for case in cases:
         t0 = time.time()
-        out = engine.run(case.question)
+        out = engine_for(case).run(case.question)   # noqa: B023 — sequential loop
         answer = out.get("answer", "")
         abstained = answer.startswith(ABSTAIN_MARK)
         gold = {(case.doc_name, p) for p in case.gold_pages}
@@ -118,7 +126,9 @@ def write_report(m: dict, corpus: dict, args, mode: str, judge_label: str) -> Pa
         f"Date: {date.today().isoformat()} · Agent: **{mode}** · Judge: **{judge_label}** · "
         f"Sample: **{m['n']} questions (seed {args.seed})** over {corpus['docs']} source PDFs "
         f"({corpus['pages']} pages → {corpus['chunks']} chunks, {corpus['enriched']} VLM-enriched, "
-        f"{corpus['skipped_pages']} pages skipped) · k={m['k']} · corpus-wide retrieval",
+        f"{corpus['skipped_pages']} pages skipped, {len(corpus['failed_docs'])} docs "
+        f"excluded as scanned-without-vision-key) · k={m['k']} · "
+        f"{'doc-scoped (oracle document)' if args.doc_scoped else 'corpus-wide'} retrieval",
         "",
         "| Metric | Score |",
         "|---|---|",
@@ -147,7 +157,8 @@ def write_report(m: dict, corpus: dict, args, mode: str, judge_label: str) -> Pa
               "page-image pipeline — numbers are indicative, not strictly comparable. "
               "Citation P/R here is page-level; FinRAGBench-V's box-level protocol is a "
               "planned addition using its citation_labels set._"]
-    out = REPORTS / f"{date.today().isoformat()}-finragbench-v.md"
+    scope = "doc-scoped" if args.doc_scoped else "corpus-wide"
+    out = REPORTS / f"{date.today().isoformat()}-finragbench-v-{scope}.md"
     out.write_text("\n".join(lines), encoding="utf-8")
     return out
 
@@ -162,6 +173,9 @@ def main() -> None:
     ap.add_argument("--contextual", action="store_true",
                     help="contextual chunk prefixes (1 LLM call/chunk — budget!)")
     ap.add_argument("--no-enrich", action="store_true")
+    ap.add_argument("--doc-scoped", action="store_true",
+                    help="retrieve within each case's source document (oracle-document "
+                         "setting) instead of corpus-wide")
     args = ap.parse_args()
 
     cases = load_cases(args.data_dir, sample=args.sample, seed=args.seed,
@@ -176,9 +190,26 @@ def main() -> None:
     index = QdrantIndex()
     corpus = build_corpus(args.data_dir, cases, router, store, index,
                           contextual=args.contextual, enrich=not args.no_enrich)
-    engine = AgentEngine(HybridRetriever(index), router=router)   # corpus-wide retrieval
-    m = evaluate(cases, engine, router, k=args.k)
-    path = write_report(m, corpus, args, engine.mode, router.label("judge"))
+    if corpus["failed_docs"]:
+        dropped = [c for c in cases if c.doc_name in set(corpus["failed_docs"])]
+        cases = [c for c in cases if c.doc_name not in set(corpus["failed_docs"])]
+        print(f"  {len(dropped)} cases excluded ({len(corpus['failed_docs'])} docs "
+              "not ingestable — scanned PDFs need a vision key)")
+    if args.doc_scoped:                       # oracle-document setting
+        engines: dict[str, AgentEngine] = {}
+
+        def engine_for(c):
+            if c.doc_name not in engines:
+                engines[c.doc_name] = AgentEngine(
+                    HybridRetriever(index, doc_id=c.doc_name), router=router)
+            return engines[c.doc_name]
+        mode = engine_for(cases[0]).mode
+    else:                                     # corpus-wide (the harder setting)
+        eng = AgentEngine(HybridRetriever(index), router=router)
+        engine_for = lambda c: eng            # noqa: E731
+        mode = eng.mode
+    m = evaluate(cases, engine_for, router, k=args.k)
+    path = write_report(m, corpus, args, mode, router.label("judge"))
     print(f"\nhit@{args.k}={m['hit_at_k']:.0%} MRR={m['mrr']:.3f} "
           f"citeP={m['citation_precision']} correctness={m['correctness']} -> {path}")
 

@@ -71,7 +71,7 @@ def test_harness_end_to_end_offline(data_dir, keyless_router, monkeypatch, tmp_p
     assert pdf_bytes(data_dir, "acme_report.pdf")
 
     engine = AgentEngine(HybridRetriever(index), router=keyless_router)
-    m = evaluate(cases, engine, keyless_router, k=5)
+    m = evaluate(cases, lambda c: engine, keyless_router, k=5)
     assert m["n"] == 3
     assert m["hit_at_k"] >= 0.5                           # gold page retrieved
     assert m["correctness"] is None                       # keyless: no judge
