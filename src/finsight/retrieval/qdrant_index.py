@@ -32,7 +32,16 @@ class QdrantIndex:
 
     # ── schema ──────────────────────────────────────────────────────────────
     def ensure_collection(self) -> None:
+        """Create the collection, or reconcile with one that already exists. A collection
+        created keyless has no 'dense' named vector, and Qdrant can't add one later —
+        so if a Cohere key appears afterwards we degrade to sparse-only writes/reads
+        instead of 400-ing every upsert (recreate the collection to enable dense)."""
         if self.client.collection_exists(self.collection):
+            if self.embedder:
+                info = self.client.get_collection(self.collection)
+                vectors = getattr(info.config.params, "vectors", None) or {}
+                if "dense" not in vectors:
+                    self.embedder = None       # schema predates the key: sparse-only
             return
         dense = {}
         if self.embedder:

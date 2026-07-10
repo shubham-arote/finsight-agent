@@ -37,6 +37,10 @@ services:
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-finsight_chunks}
       - MCP_SERVER_URL=http://mcp:3000/mcp/   # trailing slash: Starlette Mount 307s bare /mcp
       - CHECKPOINT=sqlite
+      # demo profile: fast ingest on free-tier keys (1 LLM call/chunk otherwise) —
+      # override with CONTEXTUAL_CHUNKS=1 ENRICH_BLOCKS=1 for quality corpus builds
+      - CONTEXTUAL_CHUNKS=${CONTEXTUAL_CHUNKS:-0}
+      - ENRICH_BLOCKS=${ENRICH_BLOCKS:-0}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}

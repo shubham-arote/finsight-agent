@@ -39,6 +39,14 @@ uv run python scripts/verify_stack.py https://finsight-<hash>-uc.a.run.app
 Async ingestion: `gsutil cp any_report.pdf gs://$BUCKET_NAME/` — the worker logs show
 parse → chunk → index, and the document becomes searchable in the shared collection.
 
+## Demo vs quality profile
+
+The service spec ships in the **demo profile**: `CONTEXTUAL_CHUNKS=0` and `ENRICH_BLOCKS=0`,
+so uploads ingest in seconds on free-tier keys (both features fire one LLM call per
+chunk/crop and will saturate trial rate limits, stalling first questions). The **query
+path is unaffected** — synthesized answers, calc lane, citations, verification all run.
+For quality corpus builds (evals, the Pub/Sub ingest worker), flip both to `1`.
+
 ## Scale knobs
 - **Vertex AI for large eval runs**: the service account already has `aiplatform.user`;
   set `LLM_JUDGE=vertex_ai/gemini-2.5-flash` (+ `GOOGLE_CLOUD_PROJECT`, injected in the

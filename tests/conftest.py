@@ -1,4 +1,17 @@
-"""Shared fixtures: a deterministic synthetic annual-report PDF + a keyless router."""
+"""Shared fixtures: a deterministic synthetic annual-report PDF + a keyless router.
+
+The suite is OFFLINE BY CONTRACT: a developer's local .env (real keys) must never leak
+into tests — otherwise "offline" tests silently make network calls (rerank per retrieve,
+cloud grading) and results drift with quota. Env overrides beat .env in pydantic-settings,
+so blank them here BEFORE any finsight import constructs Settings.
+"""
+
+import os
+
+for _k in ("GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "COHERE_API_KEY",
+           "GOOGLE_CLOUD_PROJECT", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY",
+           "MCP_SERVER_URL", "QDRANT_URL"):
+    os.environ[_k] = ""
 
 import fitz
 import pytest

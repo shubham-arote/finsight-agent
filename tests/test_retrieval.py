@@ -108,6 +108,25 @@ def test_dense_signal_contributes_to_fusion(keyless_router_module):
     assert any("dividend" in e["content"].lower() for e in evs)
 
 
+# ── schema reconciliation: keyless-created collection + a key arriving later ─
+def test_dense_degrades_on_sparse_only_collection():
+    """A collection created keyless has no 'dense' vector and Qdrant can't add one.
+    When a Cohere key appears later, the index must degrade to sparse-only writes
+    instead of 400-ing every upsert (found live: keyed restart over a keyless volume)."""
+    client = QdrantClient(":memory:")
+    QdrantIndex(client=client, collection="mig", embedder=None).ensure_collection()
+
+    keyed = QdrantIndex(client=client, collection="mig", embedder=MockEmbedder())
+    from finsight.ingestion.models import BBox, Block, BlockType
+    from finsight.ingestion.chunking import build_chunks
+    b = Block(BlockType.TEXT, BBox(0, 0, 10, 10), page=1, content="Revenue was 6,303.")
+    b.id, b.order = 0, 0
+    chunks, _ = build_chunks([b], doc_id="m")
+    assert keyed.index_chunks(chunks) == 1            # no UnexpectedResponse
+    assert keyed.embedder is None                     # degraded, disclosed via schema
+    assert keyed.search("revenue 6,303", k=1)[0]["page"] == 1
+
+
 # ── tier-1 gate: retrieval baseline must not regress ────────────────────────
 def test_baseline_hit_rate_above_floor(sample_retriever):
     from evals.retrieval_baseline import evaluate

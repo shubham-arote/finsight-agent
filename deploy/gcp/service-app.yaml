@@ -20,6 +20,9 @@ spec:
         run.googleapis.com/execution-environment: gen2
         autoscaling.knative.dev/maxScale: "2"          # cost guard
         run.googleapis.com/container-dependencies: '{"agent":["mcp"],"mcp":["qdrant"]}'
+        # keep CPU allocated between requests so background work (trace export,
+        # in-flight background ingest threads) can finish — reference-course pattern
+        run.googleapis.com/cpu-throttling: "false"
     spec:
       serviceAccountName: ${SA_EMAIL}
       containers:
@@ -42,10 +45,27 @@ spec:
               value: "vertex_ai/gemini-2.5-flash"
             - name: LLM_JUDGE
               value: "vertex_ai/gemini-2.5-flash"
+            # ── DEMO PROFILE: keep ingest light on free-tier keys. These two features
+            # fire one LLM call per chunk/crop at ingest time — great for eval corpora,
+            # but they saturate trial rate limits and stall the first questions.
+            # Flip to "1" (or remove) for quality corpus builds via the ingest worker.
+            - name: CONTEXTUAL_CHUNKS
+              value: "0"
+            - name: ENRICH_BLOCKS
+              value: "0"
             - name: GROQ_API_KEY
               valueFrom: {secretKeyRef: {name: GROQ_API_KEY, key: latest}}
             - name: COHERE_API_KEY
               valueFrom: {secretKeyRef: {name: COHERE_API_KEY, key: latest}}
+            # ── Production tracing (Langfuse) — uncomment AFTER creating the two
+            # secrets (gcloud secrets create LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY);
+            # a secretKeyRef to a missing secret fails the whole deploy.
+            # - name: LANGFUSE_HOST
+            #   value: "https://cloud.langfuse.com"
+            # - name: LANGFUSE_PUBLIC_KEY
+            #   valueFrom: {secretKeyRef: {name: LANGFUSE_PUBLIC_KEY, key: latest}}
+            # - name: LANGFUSE_SECRET_KEY
+            #   valueFrom: {secretKeyRef: {name: LANGFUSE_SECRET_KEY, key: latest}}
           resources:
             limits: {memory: 1Gi, cpu: "1"}
 
