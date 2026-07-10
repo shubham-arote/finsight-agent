@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from ...llm import LLMUnavailable, prompts
 from .. import guards
-from ..citations import parse_structured, tag_evidence, validate_citations
+from ..citations import parse_structured, snap_citations, tag_evidence, validate_citations
 from ..state import Deps, RAGState
 
 ABSTAIN = "I couldn't find information to answer that in this document."
@@ -61,7 +61,8 @@ def _cloud(state: RAGState, deps: Deps, q: str, retrieved: list[dict]) -> tuple[
         return (raw or "").strip() or ABSTAIN, []      # cite_check then verifies the numbers
     if parsed["insufficient"]:
         return ABSTAIN, []
-    return parsed["answer"], validate_citations(parsed["claims"], retrieved)
+    claims = validate_citations(parsed["claims"], retrieved)
+    return parsed["answer"], snap_citations(claims, retrieved)
 
 
 def _extractive(retrieved: list[dict]) -> tuple[str, list[dict]]:

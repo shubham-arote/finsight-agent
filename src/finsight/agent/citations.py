@@ -79,6 +79,55 @@ def validate_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
     return out
 
 
+# ── deterministic citation snapping ─────────────────────────────────────────
+def snap_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
+    """Re-anchor every citation to the retrieved block that actually CONTAINS the
+    claim's figures. The prompt tags evidence per parent section but labels it with the
+    one child block-id that matched retrieval — so the model may quote a figure from the
+    section while citing a sibling block. The page is right; the block must be made
+    right deterministically: snap to the best figure-bearing block on that page, or
+    degrade to a page-level citation (block_id None) when no retrieved block carries
+    the figure. The click-to-highlight promise depends on this."""
+    def _is_year(tok: str) -> bool:
+        return len(tok) == 4 and tok.isdigit() and tok[:2] in ("19", "20")
+
+    def norm_nums(text: str) -> list[str]:
+        return [_norm(m.group()) for m in _NUM.finditer(text or "")]
+
+    by_page: dict[int, list[dict]] = {}
+    for ev in retrieved:
+        by_page.setdefault(ev["page"], []).append(ev)
+
+    out = []
+    for cl in claims:
+        nums = norm_nums(cl["text"])
+        values = [n for n in nums if not _is_year(n)]      # years anchor nothing
+        snapped, seen = [], set()
+        for ct in cl["citations"]:
+            page, bid = ct["page"], ct["block_id"]
+            cands = by_page.get(page, [])
+            if not nums or not cands:
+                best_bid = bid
+            else:
+                def score(ev):
+                    content = _norm(ev.get("content") or ev.get("text") or "")
+                    v = sum(1 for n in values if n in content)
+                    a = sum(1 for n in nums if n in content)
+                    return (v, a, 1 if ev.get("block_id") == bid else 0)
+                best = max(cands, key=score)
+                v_hits, a_hits, _ = score(best)
+                # a real value match wins; year-only matches keep the model's block;
+                # nothing at all -> page-level citation (never point at the wrong block)
+                best_bid = (best.get("block_id") if v_hits > 0
+                            else bid if (a_hits > 0 and not values) else None)
+            key = (page, best_bid)
+            if key not in seen:
+                seen.add(key)
+                snapped.append({"page": page, "block_id": best_bid})
+        out.append({**cl, "citations": snapped})
+    return out
+
+
 # ── deterministic per-claim verification ────────────────────────────────────
 def check_claims(claims: list[dict], retrieved: list[dict],
                  computation: dict | None = None) -> tuple[list[dict], list[str]]:

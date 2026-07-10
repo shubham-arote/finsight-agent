@@ -142,6 +142,35 @@ def test_parse_structured_handles_fences_and_garbage():
     assert parse_structured('{"claims": []}') is None  # answer missing
 
 
+def test_citations_snap_to_the_figure_bearing_block():
+    """Model cites the section's tag id; the figure lives in a sibling block — the
+    citation must snap to the block that contains it (found live on a real filing)."""
+    from finsight.agent.citations import snap_citations
+    retrieved = [
+        # the year-token trap (found live): wrong block contains "2023" too — a year
+        # must not anchor the citation when a real value block exists
+        {"page": 3, "block_id": 27, "content": "we expect 2023 growth to reach mid-teens"},
+        {"page": 3, "block_id": 7, "content": "Total revenues of $40.8 million, up 22%"},
+    ]
+    claims = [{"text": "Revenue in 2023 was $40.8 million.",
+               "citations": [{"page": 3, "block_id": 27}]}]
+    out = snap_citations(claims, retrieved)
+    assert out[0]["citations"] == [{"page": 3, "block_id": 7}]
+    # no retrieved block carries the figure -> degrade to page-level, never lie
+    claims2 = [{"text": "EPS was $0.19.", "citations": [{"page": 3, "block_id": 27}]}]
+    assert snap_citations(claims2, retrieved)[0]["citations"] == [{"page": 3, "block_id": None}]
+    # figure already in the cited block -> unchanged
+    claims3 = [{"text": "Revenue was $40.8 million.", "citations": [{"page": 3, "block_id": 7}]}]
+    assert snap_citations(claims3, retrieved)[0]["citations"] == [{"page": 3, "block_id": 7}]
+
+
+def test_bare_number_is_not_a_computation():
+    from finsight.agent import extract_expression
+    assert extract_expression("40.8") is None            # lookup, not math
+    assert extract_expression("-40.8") is None
+    assert extract_expression("(1052-985)/985*100") is not None
+
+
 def test_invented_citations_are_dropped():
     retrieved = [{"page": 4, "block_id": 2}]
     claims = [{"text": "x is 1", "citations": [

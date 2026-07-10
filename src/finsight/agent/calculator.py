@@ -101,6 +101,11 @@ def extract_expression(text: str) -> str | None:
         cand = cand.strip()
         if not cand:
             continue
+        # a bare number is a LOOKUP, not a computation — accepting it would let the
+        # verifier rubber-stamp any figure as "computed" (seen live: calc "40.8").
+        # Require a binary operator BETWEEN operands (so "-40.8" doesn't qualify).
+        if not re.search(r"[\d)]\s*[+\-*/%]\s*[\d(]", cand):
+            continue
         try:
             safe_eval(cand)
             return cand
