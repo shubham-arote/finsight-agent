@@ -115,14 +115,18 @@ def extract_expression(text: str) -> str | None:
 
 
 _MATH_INTENT = re.compile(
-    r"\b(growth|grow|increase|decrease|decline|change|difference|delta|ratio|margin|"
-    r"percent|percentage|proportion|share|yoy|year[- ]over[- ]year|cagr|average|mean|"
-    r"sum|total|times|multiple|how much (more|less|higher|lower)|compared? to|versus|\bvs\b)\b",
+    r"\b(grew|grow(th)?|increased?|decreased?|declined?|changed?|difference|delta|"
+    r"yoy|year[- ]over[- ]year|cagr|average|mean|"
+    r"how much (more|less|higher|lower)|compared? (to|with)|versus|vs\.?|"
+    r"as a (percentage|percent|share|proportion) of|"
+    r"what (percentage|percent|share|proportion) of|ratio of)\b",
     re.I,
 )
 
 
 def is_math_query(question: str) -> bool:
-    """Heuristic: does answering this need arithmetic (a computed figure), not just lookup?"""
-    q = question or ""
-    return bool(_MATH_INTENT.search(q)) or bool(re.search(r"%|\bper cent\b", q, re.I))
+    """Heuristic: does answering this require DERIVING a figure (change, ratio-of,
+    comparison), not looking one up? Financial vocabulary alone — margin, total,
+    percent, share — must NOT trigger: documents state those figures verbatim, and
+    routing lookups to the calculator made every query read as 'calc' in the trace."""
+    return bool(_MATH_INTENT.search(question or ""))

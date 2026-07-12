@@ -47,7 +47,13 @@ def test_extract_expression_from_noisy_reply():
 
 
 # ── math-intent routing heuristic ───────────────────────────────────────────
-def test_is_math_query():
+def test_is_math_query_requires_derivation_not_vocabulary():
+    # derivational -> calc
     assert is_math_query("By how much did revenue grow year on year?")
-    assert is_math_query("What was the operating margin in percent?")
+    assert is_math_query("What is gross profit as a percentage of revenue?")
+    assert is_math_query("How does Q1 2023 compare to Q1 2022?")
+    # stated-in-the-document lookups -> qa, even with financial vocabulary
     assert not is_math_query("What was revenue in FY26?")
+    assert not is_math_query("What was total revenue in the first quarter of 2023?")
+    assert not is_math_query("What was the GAAP gross margin percentage?")
+    assert not is_math_query("What were earnings per share?")
