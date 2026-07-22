@@ -41,6 +41,9 @@ _PROVIDER_KEY_ATTR = {
     # Vertex AI authenticates via ADC, not an api key — "has key" = project configured.
     # This is the scale path: same chains, production quotas (e.g. for large eval runs).
     "vertex_ai": "google_cloud_project",
+    # Self-hosted vLLM (OpenAI-compatible; e.g. the production-ocr-course Qwen cluster):
+    # "has key" = endpoint configured. Auth is the endpoint's concern (gateway/ILB).
+    "hosted_vllm": "vllm_base_url",
 }
 
 ROLES = ("fast", "answer", "vision", "judge")
@@ -128,10 +131,14 @@ class LLMRouter:
         return getattr(self.settings, _PROVIDER_KEY_ATTR[self._provider(model)])
 
     def _auth_kwargs(self, model: str) -> dict:
-        """Provider auth: api_key for keyed providers; project+location (ADC) for Vertex."""
-        if self._provider(model) == "vertex_ai":
+        """Provider auth: api_key for keyed providers; project+location (ADC) for Vertex;
+        api_base for self-hosted vLLM."""
+        provider = self._provider(model)
+        if provider == "vertex_ai":
             return {"vertex_project": self.settings.google_cloud_project,
                     "vertex_location": self.settings.vertex_location}
+        if provider == "hosted_vllm":
+            return {"api_base": self.settings.vllm_base_url, "api_key": "EMPTY"}
         return {"api_key": self._key(model)}
 
 

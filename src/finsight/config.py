@@ -68,6 +68,17 @@ class Settings(BaseSettings):
     mcp_server_url: str = ""                  # e.g. http://mcp:3000/mcp; empty = in-process
     mcp_port: int = 3000
 
+    # ── self-hosted VDU/OCR (production-ocr-course GKE cluster) ──
+    # Level 1: point the vision role at any OpenAI-compatible vLLM endpoint
+    # (e.g. the course's Qwen3.5-4B A100 deployment):
+    #   VLLM_BASE_URL=http://<ilb-or-gateway>/v1
+    #   LLM_VISION=hosted_vllm/Qwen/Qwen3.5-4B
+    vllm_base_url: str = ""
+    # Level 2 (parser tier, see docs/selfhosted-ocr-integration.md): the Rust gateway
+    # (POST /process -> task_id; GET /status/<id> -> {markdown, layout}) as a
+    # whole-document parser with block-level layout for scanned docs
+    ocr_gateway_url: str = ""
+
     # ── Google Vertex AI (the scale path — week3 reference pattern: ADC auth) ──
     # Set GOOGLE_CLOUD_PROJECT (+ `gcloud auth application-default login` or a service
     # account) and put vertex_ai/* models in the role chains, e.g.

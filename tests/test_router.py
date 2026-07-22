@@ -106,6 +106,27 @@ def test_unknown_role_rejected():
         LLMRouter(_settings()).complete("nonsense", "q")
 
 
+def test_hosted_vllm_uses_api_base_not_api_key(monkeypatch):
+    """Self-hosted vLLM (production-ocr-course cluster): endpoint configured = usable;
+    calls carry api_base; unset endpoint = skipped like any missing key."""
+    seen = {}
+
+    def fake(model, messages, **kw):
+        seen.update(kw)
+        return _resp("ok")
+
+    monkeypatch.setattr(litellm, "completion", fake)
+    s = _settings(llm_vision="hosted_vllm/Qwen/Qwen3.5-4B",
+                  vllm_base_url="http://ocr-gateway/v1")
+    router = LLMRouter(s)
+    assert router.available("vision")
+    assert router.complete("vision", "ocr this") == "ok"
+    assert seen["api_base"] == "http://ocr-gateway/v1"
+
+    assert not LLMRouter(_settings(llm_vision="hosted_vllm/Qwen/Qwen3.5-4B",
+                                   vllm_base_url="")).available("vision")
+
+
 def test_system_message_is_passed_through(monkeypatch):
     seen = {}
 
