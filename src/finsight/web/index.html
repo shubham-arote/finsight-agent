@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>finsight — cited financial document agent</title>
-<link rel="stylesheet" href="/static/styles.css?v=1">
+<link rel="stylesheet" href="/static/styles.css?v=2">
 </head>
 <body>
 <header>
@@ -44,11 +44,12 @@
         “What was operating profit in FY26?” · “By how much did revenue grow year on year?”</div>
     </div>
     <form id="ask-form" class="ask">
+      <button type="button" id="brief-btn" class="btn ghost" disabled title="Autonomous analyst brief">📋 Brief</button>
       <input id="q" autocomplete="off" placeholder="Ask about this document…" disabled>
       <button id="send" class="btn primary" disabled>Ask</button>
     </form>
   </section>
 </main>
-<script src="/static/app.js?v=1"></script>
+<script src="/static/app.js?v=2"></script>
 </body>
 </html>

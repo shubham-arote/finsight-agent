@@ -26,6 +26,7 @@ from fastapi import FastAPI, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from . import agent
 from .agent import guards
 from .ingestion.models import block_to_dict
 from .services import documents
@@ -175,6 +176,18 @@ async def ws_ask(ws: WebSocket, doc_id: str):
                                     "error": "still ingesting — try again in a moment"})
                 continue
             engine = documents.get_engine(doc_id)
+
+            # "analyze this filing" / "give me a brief" → the autonomous analyst lane:
+            # the agent plans a checklist and runs each item through the full loop.
+            if agent.is_brief_request(question):
+                label = d.get("name") or ""
+
+                def gen_brief(lbl=label):
+                    yield from agent.run_brief(engine, doc_label=lbl, thread_id=thread_id)
+
+                async for ev in _bridge(gen_brief):
+                    await ws.send_json(ev)
+                continue
 
             def gen(q=question):
                 yield from engine.run_streaming(q, thread_id=thread_id)

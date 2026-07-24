@@ -69,6 +69,17 @@ main{flex:1;display:grid;grid-template-columns:minmax(360px,46%) 1fr;gap:14px;
   padding:0 7px;font-size:.9em;cursor:pointer;color:var(--accent)}
 .cite:hover{border-color:var(--accent)}
 
+.brief-head{font-weight:600;margin-bottom:8px}
+.brief-plan{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.brief-plan .chip.running{border-color:var(--accent);color:var(--accent);animation:pulse 1s ease-in-out infinite}
+.brief-plan .chip.muted{opacity:.5}
+@keyframes pulse{50%{opacity:.5}}
+.brief-body{display:flex;flex-direction:column;gap:7px}
+.brief-row{font-size:.9em;line-height:1.5;padding:7px 10px;background:var(--bg);
+  border:1px solid var(--line);border-radius:8px}
+.brief-row.muted{color:var(--muted)}
+.brief-row b{color:var(--accent)}
+
 .ask{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
 .ask input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;
   color:var(--text);padding:9px 12px;font-size:.95em}

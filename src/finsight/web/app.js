@@ -89,7 +89,17 @@ async function highlight(page, blockId) {
 }
 
 /* ── chat ── */
-function setAsk(on) { $("q").disabled = !on; $("send").disabled = !on; if (on) $("q").focus(); }
+function setAsk(on) {
+  $("q").disabled = !on; $("send").disabled = !on;
+  $("brief-btn").disabled = !on || !state.doc;
+  if (on) $("q").focus();
+}
+
+$("brief-btn").onclick = () => {
+  if (state.busy || !state.ws || state.ws.readyState !== 1) return;
+  addMsg("user", "Analyze this filing"); state.busy = true; setAsk(false);
+  state.ws.send(JSON.stringify({ question: "analyze this filing" }));
+};
 
 function addMsg(cls, html, raw = false) {
   const el = document.createElement("div");
@@ -117,7 +127,54 @@ function connectWs() {
     else if (ev.type === "agent_node") renderNode(trace, ev);
     else if (ev.type === "agent_answer") renderAnswer(ev);
     else if (ev.type === "agent_done") { state.busy = false; setAsk(true); }
+    else if (ev.type === "brief_start") startBrief(ev);
+    else if (ev.type === "brief_step") briefStep(ev);
+    else if (ev.type === "brief_section") briefSection(ev);
+    else if (ev.type === "brief_done") { briefDone(ev); state.busy = false; setAsk(true); }
   };
+}
+
+/* ── autonomous brief lane ── */
+function startBrief(ev) {
+  const el = addMsg("agent", "", true);
+  el.innerHTML = `<div class="brief-head">📋 Analyst brief — planning ${ev.sections.length} sections…</div>
+    <div class="brief-plan">${ev.sections.map((h, i) =>
+      `<span class="chip" id="bsec-${i}">${esc(h)}</span>`).join("")}</div>
+    <div class="brief-body"></div>`;
+  state.brief = { el, sections: [] };
+}
+function briefStep(ev) {
+  const chip = state.brief?.el.querySelector(`#bsec-${ev.i}`);
+  if (chip) chip.classList.add("running");
+  const head = state.brief?.el.querySelector(".brief-head");
+  if (head) head.textContent = `📋 Analyst brief — running ${ev.i + 1}/${ev.n}: ${ev.heading}…`;
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function briefSection(ev) {
+  const chip = state.brief?.el.querySelector(`#bsec-${state.brief.sections.length}`);
+  if (chip) { chip.classList.remove("running");
+    chip.classList.add(ev.status === "answered" ? "ok" : "muted"); }
+  state.brief.sections.push(ev);
+}
+function briefDone(ev) {
+  const head = state.brief.el.querySelector(".brief-head");
+  head.textContent = `📋 Analyst brief — ${ev.answered}/${ev.total} answered from the document`;
+  const body = state.brief.el.querySelector(".brief-body");
+  body.innerHTML = ev.sections.map(s => {
+    if (s.status === "not_disclosed")
+      return `<div class="brief-row muted"><b>${esc(s.heading)}.</b> Not disclosed in this document.</div>`;
+    const cites = [...new Map((s.claims || []).flatMap(cl =>
+      (cl.citations || []).map(ct => [`${ct.page}:${ct.block_id}`, ct]))).values()];
+    const chips = cites.map(ct =>
+      `<button class="cite" data-p="${ct.page}" data-b="${ct.block_id ?? ""}">p${ct.page}${ct.block_id != null ? "·b" + ct.block_id : ""}</button>`).join(" ");
+    const flag = s.verified ? "" : ` <span class="x">⚠ unverified</span>`;
+    const calc = s.computed ? ` <span class="chip ok">computed</span>` : "";
+    return `<div class="brief-row"><b>${esc(s.heading)}.</b> ${esc(s.answer)}${calc} ${chips}${flag}</div>`;
+  }).join("");
+  body.querySelectorAll(".cite").forEach(btn => {
+    btn.onclick = () => highlight(+btn.dataset.p, btn.dataset.b === "" ? null : +btn.dataset.b);
+  });
+  $("log").scrollTop = $("log").scrollHeight;
 }
 
 function renderNode(trace, ev) {

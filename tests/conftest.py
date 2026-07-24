@@ -7,11 +7,17 @@ so blank them here BEFORE any finsight import constructs Settings.
 """
 
 import os
+import tempfile
 
 for _k in ("GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "COHERE_API_KEY",
            "GOOGLE_CLOUD_PROJECT", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY",
            "MCP_SERVER_URL", "QDRANT_URL"):
     os.environ[_k] = ""
+
+# Never read/write the developer's artifact cache: it accumulates real uploaded docs,
+# so the server's startup-reload would re-index megabytes and hang the suite. Point
+# every test at a throwaway store before Settings loads.
+os.environ["ARTIFACTS_DB"] = os.path.join(tempfile.mkdtemp(prefix="finsight-test-"), "a.db")
 
 import fitz
 import pytest
