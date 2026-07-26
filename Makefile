@@ -30,6 +30,8 @@ help:
 	@echo "No-Docker demo:"
 	@echo "  make demo      — uvicorn on :8010 with your .env (cloud mode if keys present)"
 	@echo ""
+	@echo "  make vertex    — preflight the Vertex AI path (project, ADC, a real call)"
+	@echo ""
 	@echo "Quality gates (offline, no keys needed):"
 	@echo "  make gate      — full pytest suite (eval floors gated)"
 	@echo "  make eval      — agent eval report (evals/reports/)"
@@ -57,6 +59,9 @@ nuke:
 demo:
 	uv run uvicorn finsight.server:app --host 127.0.0.1 --port 8010
 
+vertex:
+	uv run python scripts/check_vertex.py
+
 gate:
 	uv run pytest -q
 
@@ -66,4 +71,4 @@ eval:
 bench:
 	uv run python -X utf8 -m evals.run_benchmark --data-dir data/finragbench_v --sample 25 --doc-scoped
 
-.PHONY: help up verify logs down nuke demo gate eval bench
+.PHONY: help up verify logs down nuke demo vertex gate eval bench
