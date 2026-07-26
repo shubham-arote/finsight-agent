@@ -67,11 +67,17 @@ Everything else below is the machinery that makes those figures trustworthy.
 
 Every retrieval/agent change is gated in CI against committed eval reports ([evals/reports/](evals/reports/)).
 
-| Eval (labelled sample set, offline/keyless) | Result |
-|---|---|
-| Retrieval hit@5 / MRR | **100% / 0.902** |
-| Abstain accuracy (out-of-scope refused) | 75% (100% with cloud grading) |
-| Citation hit · verified figures · claim coverage | **90% · 100% · 100%** |
+Labelled sample set (21 in-scope + 4 out-of-scope), full agent loop:
+
+| Metric | Keyed (Groq answers) | Keyless (sparse + extractive) |
+|---|---|---|
+| Abstain accuracy — out-of-scope refused | **100%** | 75% |
+| Citation hit — cited source on an expected page | **100%** | 90% |
+| Verified figures · claim coverage | **95% · 100%** | 100% · 100% |
+| Retrieval hit@5 / MRR (retrieval-only baseline) | — | **100% / 0.902** |
+
+The keyless column is the honest floor: no API keys, lexical grading, extractive answers.
+Both are committed reports, and the floors are gated in CI.
 
 **FinRAGBench-V** (EMNLP 2025, real filings — 539 EN questions / 105 PDFs): the harness
 ([evals/run_benchmark.py](evals/run_benchmark.py)) ingests the real source PDFs, scores retrieval
