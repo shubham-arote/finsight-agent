@@ -21,6 +21,22 @@ def _norm(s: str) -> str:
     return (s or "").replace(",", "")
 
 
+def contains_number(haystack_norm: str, token: str) -> bool:
+    """Does `token` appear in the text as a STANDALONE number?
+
+    Plain substring matching silently lies about provenance: "22" is inside "2022",
+    "40.8" is inside "140.8". That let a claim look supported by a block that merely
+    contained a year, and let citations snap to the wrong block. Both sides of the
+    trust layer (snapping and verification) go through this.
+    """
+    return re.search(rf"(?<![\d.]){re.escape(token)}(?![\d.]?\d)", haystack_norm) is not None
+
+
+def is_year(tok: str) -> bool:
+    """Years are labels, not claim figures — they shouldn't need their own citation."""
+    return len(tok) == 4 and tok.isdigit() and tok[:2] in ("19", "20")
+
+
 # ── tagged context for the prompt ───────────────────────────────────────────
 def tag_evidence(retrieved: list[dict], max_chars: int = 4500) -> str:
     """Dedup parent sections small-to-big; tag every entry with its citation anchor."""
@@ -84,8 +100,8 @@ def _block_score(ev: dict, values: list[str], nums: list[str], cited_bid) -> tup
     """Rank a retrieved block as the true home of a claim's figures:
     (real values matched, any numbers matched, is the block the model named)."""
     content = _norm(ev.get("content") or ev.get("text") or "")
-    return (sum(1 for n in values if n in content),
-            sum(1 for n in nums if n in content),
+    return (sum(1 for n in values if contains_number(content, n)),
+            sum(1 for n in nums if contains_number(content, n)),
             1 if ev.get("block_id") == cited_bid else 0)
 
 
@@ -98,9 +114,6 @@ def snap_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
     right deterministically: snap to the best figure-bearing block on that page, or
     degrade to a page-level citation (block_id None) when no retrieved block carries
     the figure. The click-to-highlight promise depends on this."""
-    def _is_year(tok: str) -> bool:
-        return len(tok) == 4 and tok.isdigit() and tok[:2] in ("19", "20")
-
     def norm_nums(text: str) -> list[str]:
         return [_norm(m.group()) for m in _NUM.finditer(text or "")]
 
@@ -111,7 +124,7 @@ def snap_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
     out = []
     for cl in claims:
         nums = norm_nums(cl["text"])
-        values = [n for n in nums if not _is_year(n)]      # years anchor nothing
+        values = [n for n in nums if not is_year(n)]       # years anchor nothing
         snapped, seen = [], set()
         for ct in cl["citations"]:
             page, bid = ct["page"], ct["block_id"]
@@ -161,7 +174,9 @@ def check_claims(claims: list[dict], retrieved: list[dict],
         bad = []
         for m in _NUM.finditer(cl["text"]):
             tok = _norm(m.group())
-            if tok in cited:
+            if is_year(tok):
+                continue                    # a period label, not a figure to verify
+            if contains_number(cited, tok):
                 continue
             try:
                 val = float(tok)

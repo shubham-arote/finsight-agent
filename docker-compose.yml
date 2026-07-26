@@ -15,6 +15,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      # recovering a persisted collection on a cold start takes ~35s — longer than
+      # interval*retries, which made dependents abort with "dependency failed to
+      # start" on any restart that had real data in the volume
+      start_period: 90s
 
   mcp:
     build: .

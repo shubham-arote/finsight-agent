@@ -21,17 +21,23 @@ from collections.abc import Iterator
 
 # Standard analyst first-read of a filing. Order = how a brief reads top to bottom.
 BRIEF_CHECKLIST: list[dict] = [
-    {"heading": "Revenue", "question": "What was total revenue for the period?"},
+    {"heading": "Revenue", "question": "What were total revenues for the period?"},
     {"heading": "Revenue growth",
      "question": "By how much did revenue change versus the prior year, in percent?"},
     {"heading": "Profitability",
-     "question": "What was operating profit or operating income for the period?"},
-    {"heading": "Margin", "question": "What was the operating margin or gross margin?"},
+     "question": "What was operating profit, operating income, or income from operations?"},
+    {"heading": "Margin", "question": "What was the gross margin or operating margin?"},
     {"heading": "Bottom line",
-     "question": "What was net income or profit after tax, and earnings per share?"},
-    {"heading": "Cash", "question": "What was the cash position or cash flow for the period?"},
+     "question": "What was net income or profit after tax, and earnings per diluted share?"},
+    # Question wording matters for retrieval: these mirror the vocabulary filings
+    # actually use ("cash, cash equivalents and short-term investments"; "we expect"),
+    # because generic phrasings missed disclosed figures on a real 10-Q.
+    {"heading": "Cash",
+     "question": "What were cash, cash equivalents and short-term investments at "
+                 "period end, or cash generated from operations?"},
     {"heading": "Outlook",
-     "question": "What guidance or outlook did management provide for the coming period?"},
+     "question": "What does management expect for the coming period — any guidance, "
+                 "outlook, or expected growth rate?"},
 ]
 
 _BRIEF_INTENT = re.compile(

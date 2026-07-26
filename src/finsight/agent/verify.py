@@ -10,6 +10,8 @@ from __future__ import annotations
 import math
 import re
 
+from .citations import contains_number, is_year
+
 _NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 _PAGE_CITE = re.compile(r"\[page\s+\d+\]", re.I)
 
@@ -31,7 +33,9 @@ def verify_numbers(answer: str, retrieved: list[dict], computation: dict | None 
         if tok in seen:
             continue
         seen.add(tok)
-        if tok in ctx:
+        if is_year(tok):
+            continue                        # a period label, not a figure to verify
+        if contains_number(ctx, tok):       # standalone match: "22" is not in "2022"
             continue
         try:
             val = float(tok)

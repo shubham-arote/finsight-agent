@@ -143,6 +143,29 @@ def test_parse_structured_handles_fences_and_garbage():
     assert parse_structured('{"claims": []}') is None  # answer missing
 
 
+def test_number_matching_is_standalone_not_substring():
+    """Found on a real filing: '22' matched inside '2022', so a claim looked supported
+    by a block that only contained a year, and citations snapped to it."""
+    from finsight.agent.citations import contains_number
+    assert not contains_number("in 2022 the group grew", "22")
+    assert not contains_number("revenue of 140.8 million", "40.8")
+    assert not contains_number("40.85 percent", "40.8")
+    assert contains_number("revenue was 40.8 million", "40.8")
+    assert contains_number("up 22 percent", "22")
+    assert contains_number("(4001) cost of sales", "4001")
+
+
+def test_years_are_not_treated_as_claim_figures():
+    """'2023' in 'Net income for the first quarter of 2023...' is a period label; it
+    was being reported as an unverified figure and flagging clean answers."""
+    from finsight.agent.citations import check_claims
+    retrieved = [{"page": 3, "block_id": 1, "content": "Net income was $0.4 million"}]
+    claims = [{"text": "Net income for the first quarter of 2023 was $0.4 million.",
+               "citations": [{"page": 3, "block_id": 1}]}]
+    checked, bad = check_claims(claims, retrieved)
+    assert bad == [] and checked[0]["verified"] is True
+
+
 def test_citations_snap_to_the_figure_bearing_block():
     """Model cites the section's tag id; the figure lives in a sibling block — the
     citation must snap to the block that contains it (found live on a real filing)."""
