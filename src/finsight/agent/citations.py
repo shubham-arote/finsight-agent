@@ -38,9 +38,21 @@ def is_year(tok: str) -> bool:
 
 
 # ── tagged context for the prompt ───────────────────────────────────────────
-def tag_evidence(retrieved: list[dict], max_chars: int = 4500) -> str:
-    """Dedup parent sections small-to-big; tag every entry with its citation anchor."""
-    seen, parts = set(), []
+def tag_evidence(retrieved: list[dict], max_chars: int = 4500,
+                 per_entry: int = 1400) -> str:
+    """Small-to-big context: each entry is the MATCHED BLOCK plus its parent section
+    for surrounding context, tagged with its citation anchor.
+
+    The matched block is mandatory. `parent_text` is a section *excerpt* (capped at
+    index time), so a block that matched can sit past that cutoff — emitting only the
+    parent silently dropped the very sentence retrieval found. That caused confident
+    'not disclosed' answers for facts that were in the document (seen live: a cash
+    position on p3 retrieved at score 0.83 and then graded 'weak' three times).
+
+    Budget is spent per entry so later hits still appear, instead of one long parent
+    consuming the whole window.
+    """
+    seen, parts, used = set(), [], 0
     for c in retrieved:
         sid, doc = c.get("section_id"), c.get("doc_id")
         key = ("s", doc, sid) if sid is not None else ("c", doc, c.get("block_id"), c.get("page"))
@@ -48,9 +60,18 @@ def tag_evidence(retrieved: list[dict], max_chars: int = 4500) -> str:
             continue
         seen.add(key)
         head = c.get("section_heading") or c.get("heading") or ""
-        body = c.get("parent_text") or c.get("content") or c.get("text") or ""
-        parts.append(f"[page {c['page']} | block {c.get('block_id')}] {head}\n{body}")
-    return "\n\n".join(parts)[:max_chars]
+        content = (c.get("content") or c.get("text") or "").strip()
+        parent = (c.get("parent_text") or "").strip()
+        if content and parent and content not in parent:
+            body = f"{parent[:per_entry]}\n…\n{content[:per_entry]}"
+        else:
+            body = (parent or content)[:per_entry]
+        entry = f"[page {c['page']} | block {c.get('block_id')}] {head}\n{body}"
+        if parts and used + len(entry) > max_chars:
+            break
+        parts.append(entry)
+        used += len(entry)
+    return "\n\n".join(parts)
 
 
 # ── parsing (LLM output is untrusted — validate everything) ─────────────────

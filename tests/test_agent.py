@@ -143,6 +143,30 @@ def test_parse_structured_handles_fences_and_garbage():
     assert parse_structured('{"claims": []}') is None  # answer missing
 
 
+def test_tag_evidence_always_includes_the_matched_block():
+    """parent_text is a truncated section excerpt — a block that matched can fall past
+    that cutoff. Emitting only the parent dropped the retrieved sentence and produced
+    confident 'not disclosed' answers for facts that WERE in the document."""
+    from finsight.agent.citations import tag_evidence
+    hit = {"page": 3, "block_id": 24, "section_id": 1, "doc_id": "d",
+           "section_heading": "Results",
+           "content": "Cash and short-term investments were $133.5 million.",
+           "parent_text": "Some earlier prose in the same section. " * 60}   # >1400 chars
+    ctx = tag_evidence([hit])
+    assert "133.5" in ctx                       # the matched block survives
+    assert "[page 3 | block 24]" in ctx         # still citation-tagged
+
+
+def test_tag_evidence_budgets_across_hits():
+    """One long parent must not consume the whole window and hide later evidence."""
+    from finsight.agent.citations import tag_evidence
+    hits = [{"page": p, "block_id": p, "section_id": p, "doc_id": "d",
+             "section_heading": f"S{p}", "content": f"figure {p}00.5 here",
+             "parent_text": "filler " * 400} for p in (1, 2, 3)]
+    ctx = tag_evidence(hits)
+    assert "100.5" in ctx and "200.5" in ctx     # later hits still represented
+
+
 def test_number_matching_is_standalone_not_substring():
     """Found on a real filing: '22' matched inside '2022', so a claim looked supported
     by a block that only contained a year, and citations snapped to it."""
