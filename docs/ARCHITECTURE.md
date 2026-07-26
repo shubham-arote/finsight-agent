@@ -116,6 +116,30 @@ compute deterministically, and **audit its own citations** — `cite_check` veri
 every figure in every claim appears in the exact block that claim cites (or in the
 calculator result), else it appends a visible warning.
 
+### The brief lane — one instruction, a dozen autonomous steps
+
+Say *"analyze this filing"* (or press 📋 Brief) and the agent stops answering and
+starts **working**:
+
+1. **Plan** — a finance-standard first-read checklist: revenue, growth, profitability,
+   margin, bottom line, cash, outlook. (Deterministic today; the hook to have an LLM
+   adapt it per document type lives in `plan_brief`.)
+2. **Execute** — each checklist item is run through the **whole graph above**, on its
+   own: retrieve → grade → maybe rewrite-and-retry → maybe calculate → generate →
+   cite_check. Seven items ≈ 7 full agent runs ≈ 20+ LLM and tool calls, no human input.
+3. **Compose** — a one-page brief. Every line keeps its `[p·b]` citations (clickable →
+   highlights the block on the page), computed figures are labelled, and any item the
+   document doesn't disclose is printed as **"not disclosed"** — the abstain path
+   surfacing as an honest gap rather than a fabricated number.
+
+Why this is the interesting part: *"a chatbot answers a question; this produces an
+analyst's first hour of work from one click, and every number in it is traceable."*
+
+Implementation note worth knowing: the lane lives in `agent/brief.py` at the **engine**
+level, not as a graph node — it *orchestrates* whole graph runs, so making it a node
+would mean a graph invoking itself. Each item also gets its own thread id, so the seven
+runs stay independent instead of polluting each other's conversation memory.
+
 ## Rate limits — why they happen and the strategy
 
 Where the calls go, per activity:

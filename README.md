@@ -1,11 +1,31 @@
 # finsight — a citation-grounded financial document agent
 
-Upload financial filings (born-digital **or** scanned), ask questions, and get answers where
-**every claim cites the exact page + block it came from** and **every figure is computed
-deterministically and verified** — never LLM mental math, never an untraceable number.
+Upload a filing (born-digital **or** scanned) and either ask questions or say
+**"analyze this filing"** — the agent then works on its own: it plans an analyst
+checklist, runs each item through its full reasoning loop, and returns a **one-page
+brief where every figure carries the page + block it came from** and **every computed
+number is calculated deterministically and verified against its own citation**.
+Never LLM mental math; never an untraceable number; an honest "not disclosed" when the
+document doesn't say.
 
 **LangGraph multi-agent core · hybrid RAG (Qdrant) · MCP retrieval sidecar · Pub/Sub async
 ingestion · Langfuse observability · versioned prompts · evaluated on FinRAGBench-V (EMNLP 2025).**
+
+## The autonomous lane (what makes it an agent, not a chatbot)
+
+One instruction → a dozen autonomous steps → a work product:
+
+```
+"analyze this filing"
+   └─▶ plan       finance-standard first-read checklist (revenue, growth, margin,
+   │              bottom line, cash, outlook — 7 items)
+   └─▶ execute    each item runs the FULL agent loop by itself:
+   │              retrieve → grade → (rewrite ↺ | calculate) → generate → cite_check
+   └─▶ compose    one-page brief; every line cited [p·b] and click-to-highlight,
+                  computed figures flagged, gaps marked "not disclosed" (never invented)
+```
+
+Everything else below is the machinery that makes those figures trustworthy.
 
 ```
  PDF ──▶ parse (routed PER PAGE)          text layer (exact figures, free)  |  cloud VLM OCR (scanned)
@@ -81,6 +101,31 @@ in-process otherwise — same `Retriever` protocol, so the agent can't tell the 
 **GCP** (Cloud Run multi-container + GCS→Pub/Sub async ingestion + Secret Manager + Vertex):
 scripted end-to-end in [deploy/gcp/](deploy/gcp/) — see [docs/deploy.md](docs/deploy.md).
 
+### Scaling past free-tier rate limits
+
+Free keys cap request rate, which shows up during *ingest* (contextual chunking and VLM
+enrichment fire one call per chunk/crop), not during questions. Three levers, in order:
+
+1. **Demo profile** (default in compose/Cloud Run): `CONTEXTUAL_CHUNKS=0 ENRICH_BLOCKS=0`
+   → ingest makes **zero** LLM calls; the agentic query path is untouched.
+2. **Spread roles across providers** — a second free key (Gemini) moves `vision` and
+   `judge` off the answer provider, so one quota isn't serving every role.
+3. **Vertex AI for production quotas** — same role chains, no API keys, service-account
+   auth (ADC); this is the real fix at volume:
+
+```bash
+GOOGLE_CLOUD_PROJECT=my-project
+LLM_ANSWER=vertex_ai/gemini-2.5-flash,groq/llama-3.3-70b-versatile
+LLM_FAST=vertex_ai/gemini-2.5-flash
+LLM_VISION=vertex_ai/gemini-2.5-flash
+LLM_JUDGE=vertex_ai/gemini-2.5-flash
+```
+
+Nothing else changes: providers are configuration, and every content-hash cache means a
+rerun costs zero calls. A self-hosted vLLM cluster slots into the same chains via
+`hosted_vllm/*` + `VLLM_BASE_URL` — see [docs/selfhosted-ocr-integration.md](docs/selfhosted-ocr-integration.md)
+for when that's actually worth it (sovereignty / >10k pages a day).
+
 ## Repo map
 
 ```
@@ -94,6 +139,7 @@ src/finsight/
                    · MCP client (the same seam, served remotely)
   agent/           LangGraph nodes (one file each) · AST calculator · verifier · guards
                    · structured-citation contract (citations.py)
+                   · brief.py — the autonomous lane: plan → run each item → compose
   mcp_server/      retrieval as an MCP tool (Streamable HTTP sidecar)
   services/, server.py, web/   doc lifecycle · thin FastAPI · split-view UI w/ click-to-highlight
   ingest_worker.py Pub/Sub push worker (GCS upload → parse → index)
