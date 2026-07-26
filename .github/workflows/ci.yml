@@ -16,3 +16,21 @@ jobs:
         run: uv run ruff check .
       - name: Tests (offline — no API keys; eval floors gated inside)
         run: uv run pytest
+
+  # Quality gate: scores the agent against committed floors (evals/baseline.json) and
+  # fails the build on regression. Deployment should depend on this job, not just tests —
+  # a green test suite says the code runs, this says the agent still works.
+  evals:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - name: Regression gate (retrieval + trajectory; keyless tiers still score)
+        run: uv run python -X utf8 -m evals.gate

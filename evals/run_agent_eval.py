@@ -31,6 +31,8 @@ from finsight.ingestion import ArtifactStore, ingest
 from finsight.llm import LLMRouter, LLMUnavailable, prompts
 from finsight.retrieval import HybridRetriever, QdrantIndex
 
+from . import trajectory
+
 ROOT = Path(__file__).resolve().parent.parent
 DATASET = Path(__file__).parent / "datasets" / "sample_report_qa.json"
 REPORTS = Path(__file__).parent / "reports"
@@ -62,12 +64,16 @@ def judge_correct(router: LLMRouter, question: str, reference: str, answer: str)
     return "incorrect" not in verdict.lower() and "correct" in verdict.lower()
 
 
-def evaluate(engine: AgentEngine, judge_router: LLMRouter | None = None) -> dict:
+def evaluate(engine: AgentEngine, judge_router: LLMRouter | None = None,
+             judge: bool = True) -> dict:
+    """Score the full loop. `judge=False` keeps the run free (deterministic tiers only),
+    which is what the CI gate uses."""
     qa = json.loads(DATASET.read_text(encoding="utf-8"))["questions"]
     judge_router = judge_router or engine.deps.router
-    rows = []
+    rows, traj_rows = [], []
     for item in qa:
         out = engine.run(item["q"])
+        traj_rows.append(trajectory.score_case(out, item))
         answer = out.get("answer", "")
         abstained = answer.startswith(ABSTAIN_MARK)
         cited_pages = {s["page"] for s in out.get("sources", [])}
@@ -77,7 +83,7 @@ def evaluate(engine: AgentEngine, judge_router: LLMRouter | None = None) -> dict
                "verified": not out.get("unverified"),
                "has_claims": bool(out.get("claims")),
                "task": out.get("task"), "judged": None}
-        if item["pages"] and not abstained and item.get("a"):
+        if judge and item["pages"] and not abstained and item.get("a"):
             row["judged"] = judge_correct(judge_router, item["q"], item["a"], answer)
         rows.append(row)
 
@@ -94,6 +100,7 @@ def evaluate(engine: AgentEngine, judge_router: LLMRouter | None = None) -> dict
         "claim_coverage": sum(r["has_claims"] for r in answered) / max(len(answered), 1),
         "judged_n": len(judged),
         "correctness": (sum(r["judged"] for r in judged) / len(judged)) if judged else None,
+        "trajectory": trajectory.aggregate(traj_rows),
         "rows": rows,
     }
 

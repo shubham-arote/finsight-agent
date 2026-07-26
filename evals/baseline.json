@@ -1,0 +1,22 @@
+{
+  "_comment": "Committed SCORE FLOORS for the labelled sample set. `python -m evals.gate` runs the suites and fails (exit 1) if any metric drops below its floor \u2014 so a change that degrades retrieval, routing, citations, or verification is caught before it merges. After a genuine improvement run `--ratchet` to raise these numbers, so the gate gets stricter over time and the agent can't silently regress to yesterday's quality.",
+  "_tiers": "retrieval.* and trajectory.* are deterministic and free (they run in CI with no API keys). agent.* needs a chat key. judge.correctness is opt-in (--judge) because it spends judge calls; it is deliberately scored by a DIFFERENT model family than the answerer.",
+  "_floors_note": "Floors come from `--ratchet`: deterministic metrics (retrieval math, structural trajectory checks, the regex router) are held EXACTLY at the observed score; LLM-dependent metrics get a 0.05 variance margin so normal model non-determinism doesn't fail the build \u2014 a gate that cries wolf gets ignored. KNOWN GAPS being worked, floors set low deliberately: trajectory.calculator_ran_when_routed (calc-lane questions that don't produce a deterministic computation) and agent.abstain_accuracy (one semantically adjacent out-of-scope question).",
+  "floors": {
+    "agent.abstain_accuracy": 0.65,
+    "agent.answer_rate": 0.9,
+    "agent.citation_hit": 0.9,
+    "agent.claim_coverage": 0.9,
+    "agent.verified_rate": 0.9,
+    "retrieval.hit_at_5": 1.0,
+    "retrieval.mrr": 0.9523,
+    "trajectory.abstained_when_unanswerable": 0.65,
+    "trajectory.answered_when_answerable": 0.9,
+    "trajectory.calculator_ran_when_routed": 0.0,
+    "trajectory.citations_attached": 1.0,
+    "trajectory.lane_routed_correctly": 0.88,
+    "trajectory.retrieved_before_answering": 1.0,
+    "trajectory.retry_budget_respected": 1.0,
+    "trajectory.verification_rail_ran": 1.0
+  }
+}

@@ -34,7 +34,9 @@ help:
 	@echo ""
 	@echo "Quality gates (offline, no keys needed):"
 	@echo "  make gate      — full pytest suite (eval floors gated)"
-	@echo "  make eval      — agent eval report (evals/reports/)"
+	@echo "  make eval          — agent eval report (evals/reports/)"
+	@echo "  make evals-gate    — REGRESSION GATE vs committed floors (evals/baseline.json)"
+	@echo "  make evals-ratchet — raise the floors after a genuine improvement"
 	@echo "  make bench     — FinRAGBench-V sampled run (needs data/finragbench_v/, see evals/)"
 	@echo ""
 	@echo "GCP: PROJECT_ID=<id> deploy/gcp/setup.sh && deploy/gcp/deploy.sh   (docs/deploy.md)"
@@ -68,7 +70,16 @@ gate:
 eval:
 	uv run python -m evals.run_agent_eval
 
+evals-gate:
+	uv run python -X utf8 -m evals.gate
+
+evals-gate-judge:
+	uv run python -X utf8 -m evals.gate --judge
+
+evals-ratchet:
+	uv run python -X utf8 -m evals.gate --ratchet
+
 bench:
 	uv run python -X utf8 -m evals.run_benchmark --data-dir data/finragbench_v --sample 25 --doc-scoped
 
-.PHONY: help up verify logs down nuke demo vertex gate eval bench
+.PHONY: help up verify logs down nuke demo vertex gate eval evals-gate evals-gate-judge evals-ratchet bench
