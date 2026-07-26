@@ -69,15 +69,23 @@ Every retrieval/agent change is gated in CI against committed eval reports ([eva
 
 Labelled sample set (21 in-scope + 4 out-of-scope), full agent loop:
 
-| Metric | Keyed (Groq answers) | Keyless (sparse + extractive) |
+| Metric | Vertex Gemini 2.5 Flash | Keyless (sparse + extractive) |
 |---|---|---|
-| Abstain accuracy — out-of-scope refused | **100%** | 75% |
+| Answer rate — in-scope answered | **100%** | 100% |
 | Citation hit — cited source on an expected page | **100%** | 90% |
-| Verified figures · claim coverage | **95% · 100%** | 100% · 100% |
+| Verified figures · claim coverage | **100% · 100%** | 100% · 100% |
+| Correctness — independent LLM judge (n=18) | **100%** | — (no judge) |
+| Abstain accuracy — out-of-scope refused | 75% | 75% |
 | Retrieval hit@5 / MRR (retrieval-only baseline) | — | **100% / 0.902** |
 
-The keyless column is the honest floor: no API keys, lexical grading, extractive answers.
-Both are committed reports, and the floors are gated in CI.
+Judge is a **different model family** from the answerer (Llama judging Gemini) — no
+self-grading. The keyless column is the honest floor: no API keys at all. Both are
+committed reports and the floors are gated in CI.
+
+The one persistent miss is a semantically adjacent out-of-scope question ("share price"
+against a document that reports figures *per share*); it flips between runs, so it's
+model variance on a genuinely borderline case rather than a systematic hole — left
+documented instead of chased with prompt tweaks fitted to one question.
 
 **FinRAGBench-V** (EMNLP 2025, real filings — 539 EN questions / 105 PDFs): the harness
 ([evals/run_benchmark.py](evals/run_benchmark.py)) ingests the real source PDFs, scores retrieval

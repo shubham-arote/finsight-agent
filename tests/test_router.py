@@ -106,6 +106,43 @@ def test_unknown_role_rejected():
         LLMRouter(_settings()).complete("nonsense", "q")
 
 
+def test_empty_completion_falls_through_to_next_model(monkeypatch):
+    """An empty completion is a failure, not an answer: returning "" made a one-word
+    grader verdict read as 'weak' and abstain on answerable questions."""
+    calls = []
+
+    def fake(model, **kw):
+        calls.append(model)
+        return _resp("" if model == "groq/m1" else "real answer")
+
+    monkeypatch.setattr(litellm, "completion", fake)
+    assert LLMRouter(_settings()).complete("fast", "q") == "real answer"
+    assert calls == ["groq/m1", "gemini/m2"]
+
+
+def test_all_empty_raises_llm_unavailable(monkeypatch):
+    monkeypatch.setattr(litellm, "completion", lambda model, **kw: _resp("   "))
+    with pytest.raises(LLMUnavailable, match="empty response"):
+        LLMRouter(_settings()).complete("fast", "q")
+
+
+def test_gemini_25_disables_thinking(monkeypatch):
+    """Gemini 2.5 spends a small max_tokens on invisible reasoning and returns nothing;
+    every call here wants short deterministic output."""
+    seen = {}
+
+    def fake(model, **kw):
+        seen.update(kw)
+        return _resp("ok")
+
+    monkeypatch.setattr(litellm, "completion", fake)
+    LLMRouter(_settings(gemini_api_key="k", llm_fast="gemini/gemini-2.5-flash")).complete("fast", "q")
+    assert seen["reasoning_effort"] == "none"
+    seen.clear()
+    LLMRouter(_settings(llm_fast="groq/llama-3.3-70b-versatile")).complete("fast", "q")
+    assert "reasoning_effort" not in seen        # only applied where it's needed
+
+
 def test_hosted_vllm_uses_api_base_not_api_key(monkeypatch):
     """Self-hosted vLLM (production-ocr-course cluster): endpoint configured = usable;
     calls carry api_base; unset endpoint = skipped like any missing key."""

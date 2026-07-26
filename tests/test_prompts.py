@@ -12,10 +12,12 @@ def test_all_ported_prompts_registered():
 
 
 def test_latest_version_by_default():
+    """`get()` returns the newest version. Asserted against the registry rather than a
+    frozen number — prompts are append-only and improving one shouldn't break tests."""
     p = prompts.get("grade")
-    assert p.version == 1
-    assert p.id == "grade@1"
     assert p.role == "fast"
+    assert p.version == max(v.version for v in prompts._registry()["grade"])
+    assert p.id == f"grade@{p.version}"
 
 
 def test_render_fills_variables():
@@ -26,8 +28,9 @@ def test_render_fills_variables():
 
 
 def test_render_missing_variable_raises_with_prompt_id():
-    with pytest.raises(KeyError, match="grade@1"):
-        prompts.get("grade").render(question="only one of two")
+    p = prompts.get("grade")
+    with pytest.raises(KeyError, match=p.id):
+        p.render(question="only one of two")
 
 
 def test_pinned_version_and_unknown_version():

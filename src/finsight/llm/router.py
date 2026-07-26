@@ -107,9 +107,17 @@ class LLMRouter:
                     temperature=temperature,
                     num_retries=self.settings.llm_retries,
                     **self._auth_kwargs(model),
+                    **self._model_kwargs(model),
                     **kwargs,
                 )
-                return resp.choices[0].message.content or ""
+                content = (resp.choices[0].message.content or "").strip()
+                if content:
+                    return content
+                # An empty completion is a FAILURE, not an answer. Returning "" let a
+                # one-word grader verdict become "weak" and abstain on answerable
+                # questions (seen with a thinking model eating a small token budget).
+                # Fall through to the next model in the chain instead.
+                errors.append(f"{model}: empty response")
             except _FALLBACK_ERRORS as e:
                 self._cooldown_until[model] = time.monotonic() + self.settings.llm_cooldown_s
                 errors.append(f"{model}: {type(e).__name__}")
@@ -130,6 +138,19 @@ class LLMRouter:
 
     def _key(self, model: str) -> str:
         return getattr(self.settings, _PROVIDER_KEY_ATTR[self._provider(model)])
+
+    def _model_kwargs(self, model: str) -> dict:
+        """Per-model call options.
+
+        Gemini 2.5 is a *thinking* model: it spends the token budget on invisible
+        reasoning first, so a small `max_tokens` returns empty content (measured:
+        max_tokens=4 -> None; reasoning_effort='none' -> 'relevant'). Every call this
+        app makes wants short deterministic output — a one-word grade, an arithmetic
+        expression, a JSON object — so reasoning is turned off rather than paid for.
+        """
+        if "gemini-2.5" in model:
+            return {"reasoning_effort": "none"}
+        return {}
 
     def _auth_kwargs(self, model: str) -> dict:
         """Provider auth: api_key for keyed providers; project+location (ADC) for Vertex;

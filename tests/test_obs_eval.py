@@ -66,7 +66,10 @@ def test_engine_run_writes_a_trace(monkeypatch, tmp_path, sample_pdf_bytes, keyl
     assert trace["question"].startswith("What was operating")
     assert trace["task"] == "qa" and trace["grades"] == ["relevant"]
     assert trace["retrieved"] and "latency_s" in trace
-    assert trace["prompt_versions"]["generate_answer"] == "generate_answer@2"
+    # the trace must record the version that actually ran — compared against the
+    # registry, not a frozen literal, so improving a prompt doesn't fail the suite
+    from finsight.llm import prompts
+    assert trace["prompt_versions"]["generate_answer"] == prompts.get("generate_answer").id
 
 
 def test_langfuse_off_means_no_callbacks_and_no_crash():

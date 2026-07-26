@@ -1,6 +1,27 @@
 name: grade
 role: fast
 versions:
+  - version: 2
+    changelog: "state the bar explicitly. v1's bare 'can this context answer the question?'
+      was tuned on Llama; Gemini read it as 'does this definitively and completely answer'
+      and returned weak three times for questions the document plainly answered (e.g.
+      total revenue), burning the rewrite budget and abstaining on in-scope questions
+      (answer rate 100%->86% when the fast role moved to Vertex). This version defines
+      relevant as 'contains information that helps answer', which is the gate's real job —
+      cite_check is what enforces correctness downstream."
+    template: |
+      Question: $question
+
+      Context:
+      $context
+
+      Does the Context contain information that helps answer the Question — even
+      partially, or as figures the answer can be derived from?
+
+      Say "relevant" if any part of the Context is on-topic and usable.
+      Say "weak" only if the Context is about entirely different subjects.
+
+      Reply with exactly one word: relevant or weak.
   - version: 1
     changelog: ported from ocr-pipeline app/agent/graph.py (_grade)
     template: |
