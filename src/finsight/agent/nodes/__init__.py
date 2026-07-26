@@ -9,5 +9,13 @@ from .retrieve import retrieve
 from .rewrite import rewrite
 from .supervise import supervise
 
-__all__ = ["contextualize", "supervise", "retrieve", "grade", "rewrite",
-           "calculate", "generate", "cite_check"]
+__all__ = [
+           "calculate",
+           "cite_check",
+           "contextualize",
+           "generate",
+           "grade",
+           "retrieve",
+           "rewrite",
+           "supervise",
+]

@@ -25,9 +25,10 @@ PORT = 18321
 def mcp_main():
     """The MCP server module with its index swapped for a seeded in-memory one."""
     from conftest import keyless_settings
+    from make_sample_pdf import build
+
     from finsight.llm.router import LLMRouter
     from finsight.mcp_server import main as mod
-    from make_sample_pdf import build
 
     res = ingest(build(), doc_id="sample", router=LLMRouter(keyless_settings()),
                  store=ArtifactStore(":memory:"), contextual=False)

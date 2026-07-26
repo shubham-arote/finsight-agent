@@ -29,10 +29,10 @@ class MCPRetriever:
         args: dict = {"query": query, "k": k}
         if self.doc_id:
             args["doc_id"] = self.doc_id
-        async with streamablehttp_client(self.url) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool("search_document", args)
+        async with (streamablehttp_client(self.url) as (read, write, _),
+                    ClientSession(read, write) as session):
+            await session.initialize()
+            result = await session.call_tool("search_document", args)
         payload = json.loads(result.content[0].text)
         if isinstance(payload, dict) and "error" in payload:
             raise RuntimeError(f"MCP retrieval failed: {payload['error']}")

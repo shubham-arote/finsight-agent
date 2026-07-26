@@ -13,16 +13,16 @@ from finsight.llm.router import LLMRouter, LLMUnavailable
 
 
 def _settings(**over) -> Settings:
-    base = dict(
-        groq_api_key="k-groq", gemini_api_key="k-gemini",
-        openrouter_api_key="", cohere_api_key="",
-        llm_fast="groq/m1,gemini/m2",
-        llm_answer="groq/m1,gemini/m2",
-        llm_vision="gemini/m2",
-        llm_judge="gemini/m2",
-        llm_cooldown_s=60.0,
-        llm_retries=0,
-    )
+    base = {
+        "groq_api_key": "k-groq", "gemini_api_key": "k-gemini",
+        "openrouter_api_key": "", "cohere_api_key": "",
+        "llm_fast": "groq/m1,gemini/m2",
+        "llm_answer": "groq/m1,gemini/m2",
+        "llm_vision": "gemini/m2",
+        "llm_judge": "gemini/m2",
+        "llm_cooldown_s": 60.0,
+        "llm_retries": 0,
+    }
     base.update(over)
     return Settings(_env_file=None, **base)
 

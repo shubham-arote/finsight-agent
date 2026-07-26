@@ -6,6 +6,17 @@ from .hybrid import HybridRetriever, classify, lookup_terms, make_retriever
 from .qdrant_index import QdrantIndex
 from .text import sparse_counts, term_id, tok
 
-__all__ = ["Evidence", "Retriever", "CohereEmbedder", "get_embedder",
-           "HybridRetriever", "classify", "lookup_terms", "make_retriever",
-           "QdrantIndex", "sparse_counts", "term_id", "tok"]
+__all__ = [
+           "CohereEmbedder",
+           "Evidence",
+           "HybridRetriever",
+           "QdrantIndex",
+           "Retriever",
+           "classify",
+           "get_embedder",
+           "lookup_terms",
+           "make_retriever",
+           "sparse_counts",
+           "term_id",
+           "tok",
+]

@@ -21,7 +21,8 @@ import time
 
 import litellm
 
-from ..config import Settings, settings as _default_settings
+from ..config import Settings
+from ..config import settings as _default_settings
 
 # errors that mean "this model/provider is unhealthy right now — try the next one"
 _FALLBACK_ERRORS = (

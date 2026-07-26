@@ -47,6 +47,7 @@ def retriever(keyless_router_mod):
 @pytest.fixture(scope="module")
 def keyless_router_mod():
     from conftest import keyless_settings
+
     from finsight.llm.router import LLMRouter
     return LLMRouter(keyless_settings())
 

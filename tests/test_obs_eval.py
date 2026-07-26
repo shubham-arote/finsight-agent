@@ -1,11 +1,9 @@
 """Observability (JSONL traces, optional Langfuse) + the full-agent eval gate."""
 
-import json
-from pathlib import Path
+
+from types import SimpleNamespace
 
 import litellm
-import pytest
-from types import SimpleNamespace
 
 from finsight import obs
 from finsight.config import settings

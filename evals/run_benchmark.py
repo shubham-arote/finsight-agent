@@ -66,7 +66,7 @@ def evaluate(cases: list[BenchCase], engine_for, router: LLMRouter,
     rows = []
     for case in cases:
         t0 = time.time()
-        out = engine_for(case).run(case.question)   # noqa: B023 — sequential loop
+        out = engine_for(case).run(case.question)
         answer = out.get("answer", "")
         abstained = answer.startswith(ABSTAIN_MARK)
         gold = {(case.doc_name, p) for p in case.gold_pages}
@@ -206,7 +206,7 @@ def main() -> None:
         mode = engine_for(cases[0]).mode
     else:                                     # corpus-wide (the harder setting)
         eng = AgentEngine(HybridRetriever(index), router=router)
-        engine_for = lambda c: eng            # noqa: E731
+        engine_for = lambda c: eng
         mode = eng.mode
     m = evaluate(cases, engine_for, router, k=args.k)
     path = write_report(m, corpus, args, mode, router.label("judge"))

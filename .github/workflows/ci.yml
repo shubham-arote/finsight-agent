@@ -12,4 +12,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync
-      - run: uv run pytest
+      - name: Lint
+        run: uv run ruff check .
+      - name: Tests (offline — no API keys; eval floors gated inside)
+        run: uv run pytest

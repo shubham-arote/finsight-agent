@@ -35,7 +35,7 @@ def _table(page, y, title, header, rows):
     page.insert_text((72, y), title, fontsize=13, fontname="hebo")
     top = y + 14
     rh = 22
-    allrows = [header] + rows
+    allrows = [header, *rows]
     n = len(allrows)
     for r, row in enumerate(allrows):
         ry = top + r * rh

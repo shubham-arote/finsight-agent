@@ -51,7 +51,8 @@ def sample_pdf_bytes() -> bytes:
 
 
 def keyless_settings(**over) -> Settings:
-    base = dict(groq_api_key="", gemini_api_key="", openrouter_api_key="", cohere_api_key="")
+    base = {"groq_api_key": "", "gemini_api_key": "",
+            "openrouter_api_key": "", "cohere_api_key": ""}
     base.update(over)
     return Settings(_env_file=None, **base)
 

@@ -29,7 +29,7 @@ def sample_blocks() -> list[Block]:
     footer = mk(BlockType.FOOTER, "Acme plc", 1, 3, None, y=810)
     p2 = [mk(BlockType.TEXT, "Cash generated from operations improved during the year.",
              2, 0, 0)]
-    return p1 + [footer] + p2
+    return [*p1, footer, *p2]
 
 
 def test_chunks_match_golden_file():
@@ -43,7 +43,7 @@ def test_chunks_match_golden_file():
 def test_structure_invariants():
     chunks, sections = build_chunks(sample_blocks(), doc_id="doc1")
     # furniture excluded
-    assert not any("Acme plc" == c.content for c in chunks)
+    assert not any(c.content == "Acme plc" for c in chunks)
     # table kept whole, heading-tagged, bbox-anchored
     table = next(c for c in chunks if c.type == "table")
     assert "1,052" in table.content and "985" in table.content

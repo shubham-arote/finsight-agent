@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Iterator
 from functools import partial
 from pathlib import Path
-from typing import Iterator
 
 from langgraph.graph import END, START, StateGraph
 

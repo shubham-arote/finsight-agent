@@ -7,7 +7,18 @@ from .graph import AgentEngine
 from .state import Deps, RAGState
 from .verify import verify_numbers
 
-__all__ = ["AgentEngine", "Deps", "RAGState", "guards",
-           "CalcError", "extract_expression", "is_math_query", "safe_eval",
+__all__ = [
+           "BRIEF_CHECKLIST",
+           "AgentEngine",
+           "CalcError",
+           "Deps",
+           "RAGState",
+           "compose_markdown",
+           "extract_expression",
+           "guards",
+           "is_brief_request",
+           "is_math_query",
+           "run_brief",
+           "safe_eval",
            "verify_numbers",
-           "BRIEF_CHECKLIST", "compose_markdown", "is_brief_request", "run_brief"]
+]

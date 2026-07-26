@@ -7,8 +7,14 @@ import pytest
 from qdrant_client import QdrantClient
 
 from finsight.ingestion import ArtifactStore, ingest
-from finsight.retrieval import (HybridRetriever, QdrantIndex, Retriever,
-                                classify, lookup_terms, make_retriever)
+from finsight.retrieval import (
+    HybridRetriever,
+    QdrantIndex,
+    Retriever,
+    classify,
+    lookup_terms,
+    make_retriever,
+)
 from finsight.retrieval.rerank import _rerank_heuristic
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "samples"))
@@ -28,6 +34,7 @@ def sample_retriever(keyless_router_module):
 @pytest.fixture(scope="module")
 def keyless_router_module():
     from conftest import keyless_settings
+
     from finsight.llm.router import LLMRouter
     return LLMRouter(keyless_settings())
 
@@ -117,8 +124,8 @@ def test_dense_degrades_on_sparse_only_collection():
     QdrantIndex(client=client, collection="mig", embedder=None).ensure_collection()
 
     keyed = QdrantIndex(client=client, collection="mig", embedder=MockEmbedder())
-    from finsight.ingestion.models import BBox, Block, BlockType
     from finsight.ingestion.chunking import build_chunks
+    from finsight.ingestion.models import BBox, Block, BlockType
     b = Block(BlockType.TEXT, BBox(0, 0, 10, 10), page=1, content="Revenue was 6,303.")
     b.id, b.order = 0, 0
     chunks, _ = build_chunks([b], doc_id="m")

@@ -3,4 +3,4 @@
 from . import prompts
 from .router import ROLES, LLMRouter, LLMUnavailable
 
-__all__ = ["LLMRouter", "LLMUnavailable", "ROLES", "prompts"]
+__all__ = ["ROLES", "LLMRouter", "LLMUnavailable", "prompts"]

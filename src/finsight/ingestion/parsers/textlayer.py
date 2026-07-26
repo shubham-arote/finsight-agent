@@ -209,7 +209,9 @@ def mark_repeated_furniture(pages_blocks: list[list[Block]], sizes: list[tuple])
     if n < 4:
         return 0
     counts: Counter = Counter()
-    for blocks, (_pw, ph) in zip(pages_blocks, sizes):
+    # strict: one size per page is an invariant of parse_pdf — a mismatch means blocks
+    # and geometry have desynced, which would silently mis-band furniture
+    for blocks, (_pw, ph) in zip(pages_blocks, sizes, strict=True):
         for b in blocks:
             band = _band(b, ph)
             if band and (b.content or "").strip():
@@ -217,7 +219,9 @@ def mark_repeated_furniture(pages_blocks: list[list[Block]], sizes: list[tuple])
     threshold = max(3, int(0.3 * n))
     repeated = {k for k, c in counts.items() if c >= threshold and k[0]}
     marked = 0
-    for blocks, (_pw, ph) in zip(pages_blocks, sizes):
+    # strict: one size per page is an invariant of parse_pdf — a mismatch means blocks
+    # and geometry have desynced, which would silently mis-band furniture
+    for blocks, (_pw, ph) in zip(pages_blocks, sizes, strict=True):
         for b in blocks:
             band = _band(b, ph)
             if band and (_norm(b.content), band) in repeated:

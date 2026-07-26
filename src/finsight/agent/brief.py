@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Iterator
+from collections.abc import Iterator
 
 # Standard analyst first-read of a filing. Order = how a brief reads top to bottom.
 BRIEF_CHECKLIST: list[dict] = [

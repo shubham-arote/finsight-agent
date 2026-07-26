@@ -2,9 +2,8 @@
 
 import fitz
 
-from finsight.ingestion import ArtifactStore, BlockType, parse_pdf
+from finsight.ingestion import ArtifactStore, BlockType, parse_pdf, pipeline
 from finsight.ingestion.parsers import cloud_ocr, textlayer
-from finsight.ingestion import pipeline
 
 
 def test_has_text_layer_true_for_borndigital(sample_pdf_bytes):

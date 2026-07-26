@@ -8,7 +8,7 @@ PORTED = {"contextualize", "calculate_expression", "grade", "rewrite_query", "ge
 
 
 def test_all_ported_prompts_registered():
-    assert PORTED <= set(prompts.names())
+    assert set(prompts.names()) >= PORTED
 
 
 def test_latest_version_by_default():

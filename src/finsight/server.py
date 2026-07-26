@@ -182,15 +182,17 @@ async def ws_ask(ws: WebSocket, doc_id: str):
             if agent.is_brief_request(question):
                 label = d.get("name") or ""
 
-                def gen_brief(lbl=label):
-                    yield from agent.run_brief(engine, doc_label=lbl, thread_id=thread_id)
+                # bind per-message state as defaults: the generator runs in a worker
+                # thread, so it must not read loop variables that move on
+                def gen_brief(eng=engine, lbl=label):
+                    yield from agent.run_brief(eng, doc_label=lbl, thread_id=thread_id)
 
                 async for ev in _bridge(gen_brief):
                     await ws.send_json(ev)
                 continue
 
-            def gen(q=question):
-                yield from engine.run_streaming(q, thread_id=thread_id)
+            def gen(eng=engine, q=question):
+                yield from eng.run_streaming(q, thread_id=thread_id)
 
             async for ev in _bridge(gen):
                 await ws.send_json(ev)

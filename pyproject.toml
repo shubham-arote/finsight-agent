@@ -23,6 +23,7 @@ dependencies = [
 dev = [
     "httpx>=0.28.1",
     "pytest>=8.0",
+    "ruff>=0.16.0",
     "websockets>=15.0.1",
 ]
 
@@ -40,3 +41,30 @@ where = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF"]
+ignore = [
+    # Long lines here are almost entirely explanatory comments; the 100-char limit
+    # guides code but shouldn't force reflowing prose that documents design choices.
+    "E501",
+    # BlockType is `(str, Enum)` on purpose: it is serialized into cached page
+    # artifacts and golden files. Switching to StrEnum is a semantic change to a
+    # persisted data model for zero functional gain.
+    "UP042",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]                       # asserts are the point of a test suite
+"src/finsight/agent/nodes/*" = ["B008"]    # node signatures take injected Deps
+"tests/conftest.py" = ["E402"]             # provider env must be blanked BEFORE imports
+"tests/test_mcp.py" = ["E402"]             # sys.path must be set before sample import
+"tests/test_benchmark.py" = ["E402"]
+"samples/make_sample_pdf.py" = ["E702"]    # compact page-building statements read better
+"evals/*.py" = ["E731", "E402"]            # tiny inline formatters in report scripts
+"src/finsight/agent/graph.py" = ["E402"]   # CLI demo imports after sys.path setup
+"src/finsight/ingestion/pipeline.py" = ["E402"]

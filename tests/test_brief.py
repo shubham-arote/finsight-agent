@@ -37,6 +37,7 @@ def engine(keyless_router_module):
 @pytest.fixture(scope="module")
 def keyless_router_module():
     from conftest import keyless_settings
+
     from finsight.llm.router import LLMRouter
     return LLMRouter(keyless_settings())
 

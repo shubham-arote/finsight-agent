@@ -21,7 +21,7 @@ from .text import sparse_counts
 
 class QdrantIndex:
     def __init__(self, client: QdrantClient | None = None, collection: str | None = None,
-                 embedder: CohereEmbedder | None | str = "auto"):
+                 embedder: CohereEmbedder | str | None = "auto"):
         if client is None:
             client = (QdrantClient(url=settings.qdrant_url,
                                    api_key=settings.qdrant_api_key or None)

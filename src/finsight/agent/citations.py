@@ -80,6 +80,16 @@ def validate_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
 
 
 # ── deterministic citation snapping ─────────────────────────────────────────
+def _block_score(ev: dict, values: list[str], nums: list[str], cited_bid) -> tuple:
+    """Rank a retrieved block as the true home of a claim's figures:
+    (real values matched, any numbers matched, is the block the model named)."""
+    content = _norm(ev.get("content") or ev.get("text") or "")
+    return (sum(1 for n in values if n in content),
+            sum(1 for n in nums if n in content),
+            1 if ev.get("block_id") == cited_bid else 0)
+
+
+
 def snap_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
     """Re-anchor every citation to the retrieved block that actually CONTAINS the
     claim's figures. The prompt tags evidence per parent section but labels it with the
@@ -109,11 +119,8 @@ def snap_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
             if not nums or not cands:
                 best_bid = bid
             else:
-                def score(ev):
-                    content = _norm(ev.get("content") or ev.get("text") or "")
-                    v = sum(1 for n in values if n in content)
-                    a = sum(1 for n in nums if n in content)
-                    return (v, a, 1 if ev.get("block_id") == bid else 0)
+                def score(ev, _values=values, _nums=nums, _bid=bid):
+                    return _block_score(ev, _values, _nums, _bid)
                 best = max(cands, key=score)
                 v_hits, a_hits, _ = score(best)
                 # a real value match wins; year-only matches keep the model's block;

@@ -2,7 +2,6 @@
 borderless tables (Gemini-first vision chain, cached, capped, keyless no-op)."""
 
 import fitz
-import pytest
 
 from finsight.ingestion import ArtifactStore
 from finsight.ingestion.enrich import enrich_blocks, looks_like_borderless_table

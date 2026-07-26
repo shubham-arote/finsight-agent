@@ -70,7 +70,7 @@ def _setup_langfuse() -> bool:
         # "langfuse_otel", not "langfuse": the plain callback targets the v2 SDK and
         # crash-loops against langfuse>=3 (module has no attribute 'version')
         if "langfuse_otel" not in (litellm.success_callback or []):
-            litellm.success_callback = list(litellm.success_callback or []) + ["langfuse_otel"]
+            litellm.success_callback = [*(litellm.success_callback or []), "langfuse_otel"]
         _LANGFUSE_READY = True
     except Exception:
         _LANGFUSE_READY = False

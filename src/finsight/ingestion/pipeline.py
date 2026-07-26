@@ -12,6 +12,7 @@ CLI (e2e proof):  python -m finsight.ingestion.pipeline report.pdf [--query "rev
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import fitz  # PyMuPDF
 
@@ -158,7 +159,7 @@ if __name__ == "__main__":
     ap.add_argument("--query", help="index into Qdrant (in-memory unless QDRANT_URL) and search")
     args = ap.parse_args()
 
-    data = open(args.pdf, "rb").read()
+    data = Path(args.pdf).read_bytes()
     t0 = time.time()
     res = ingest(data, parser=args.parser, contextual=not args.no_contextual)
     print(f"doc={res.doc_id} parser={res.parser} label={res.doc_label!r}")
