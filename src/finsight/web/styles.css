@@ -80,6 +80,16 @@ main{flex:1;display:grid;grid-template-columns:minmax(360px,46%) 1fr;gap:14px;
 .brief-row.muted{color:var(--muted)}
 .brief-row b{color:var(--accent)}
 
+table.cmp{width:100%;border-collapse:collapse;font-size:.85em;margin-top:6px}
+table.cmp th{text-align:left;color:var(--muted);font-weight:600;padding:5px 8px;
+  border-bottom:1px solid var(--line)}
+table.cmp td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.cmp tr:last-child td{border-bottom:none}
+table.cmp td.up{color:var(--ok);font-weight:600}
+table.cmp td.down{color:var(--bad);font-weight:600}
+.cmp-note{font-size:.75em;color:var(--muted);margin-top:7px;line-height:1.45}
+#compare-with{max-width:190px}
+
 .ask{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
 .ask input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;
   color:var(--text);padding:9px 12px;font-size:.95em}

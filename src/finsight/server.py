@@ -177,6 +177,28 @@ async def ws_ask(ws: WebSocket, doc_id: str):
                 continue
             engine = documents.get_engine(doc_id)
 
+            # period-over-period: the client sends {"compare_with": "<doc_id>"} → run the
+            # metric checklist against BOTH documents and compute every delta exactly
+            other_id = (msg.get("compare_with") or "").strip()
+            if other_id and other_id != doc_id:
+                other = documents.get(other_id)
+                if not other or other["status"] != "ready":
+                    await ws.send_json({"type": "error",
+                                        "error": "the comparison document isn't ready"})
+                    continue
+
+                other_engine = documents.get_engine(other_id)
+                label_a = d.get("name") or "current"
+                label_b = other.get("name") or "prior"
+
+                def gen_cmp(a=engine, b=other_engine, la=label_a, lb=label_b):
+                    yield from agent.run_compare(a, b, label_a=la, label_b=lb,
+                                                 thread_id=thread_id)
+
+                async for ev in _bridge(gen_cmp):
+                    await ws.send_json(ev)
+                continue
+
             # "analyze this filing" / "give me a brief" → the autonomous analyst lane:
             # the agent plans a checklist and runs each item through the full loop.
             if agent.is_brief_request(question):

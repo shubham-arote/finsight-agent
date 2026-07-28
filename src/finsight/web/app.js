@@ -31,7 +31,7 @@ async function loadDoc(promise) {
   $("doc-name").textContent = `${res.name} · ${res.page_count} pages`;
   if (res.status !== "ready") await waitReady(res.doc_id);
   $("progress").classList.add("hidden");
-  showPage(1); connectWs(); setAsk(true);
+  showPage(1); connectWs(); setAsk(true); refreshCompareOptions();
   addMsg("agent", "Document ready — ask me about it.");
 }
 
@@ -95,6 +95,68 @@ function setAsk(on) {
   if (on) $("q").focus();
 }
 
+/* ── period-over-period compare ── */
+function startCompare(ev) {
+  const el = addMsg("agent", "", true);
+  el.innerHTML = `<div class="brief-head">⇄ ${esc(ev.label_a)} vs ${esc(ev.label_b)} — comparing ${ev.metrics.length} metrics…</div>
+    <div class="brief-plan">${ev.metrics.map((m, i) => `<span class="chip" id="csec-${i}">${esc(m)}</span>`).join("")}</div>
+    <div class="cmp-body"></div>`;
+  state.cmp = { el, a: ev.label_a, b: ev.label_b, n: 0 };
+}
+function compareStep(ev) {
+  const chip = state.cmp?.el.querySelector(`#csec-${ev.i}`);
+  if (chip) chip.classList.add("running");
+}
+function compareRow(ev) {
+  const chip = state.cmp?.el.querySelector(`#csec-${state.cmp.n}`);
+  if (chip) { chip.classList.remove("running");
+    chip.classList.add(ev.status === "compared" ? "ok" : "muted"); }
+  state.cmp.n += 1;
+}
+function compareDone(ev) {
+  const c = state.cmp;
+  c.el.querySelector(".brief-head").textContent =
+    `⇄ ${c.a} vs ${c.b} — ${ev.compared}/${ev.total} metrics compared`;
+  const cell = (f) => f
+    ? `${esc(f.raw)} <button class="cite" data-p="${f.page}" data-b="${f.block_id ?? ""}">p${f.page}${f.block_id != null ? "·b" + f.block_id : ""}</button>`
+    : `<span class="muted">—</span>`;
+  const rows = ev.rows.map(r => {
+    if (r.status === "not_disclosed")
+      return `<tr class="muted"><td>${esc(r.heading)}</td><td colspan="3">not disclosed in either filing</td></tr>`;
+    const d = r.delta;
+    const arrow = d ? (d.direction === "up" ? "▲" : d.direction === "down" ? "▼" : "—") : "";
+    const cls = d ? (d.direction === "up" ? "up" : d.direction === "down" ? "down" : "") : "";
+    const chg = d ? `${arrow} ${d.abs > 0 ? "+" : ""}${(+d.abs).toPrecision(4)}${d.pct != null ? ` (${d.pct > 0 ? "+" : ""}${d.pct.toFixed(1)}%)` : ""}` : "—";
+    return `<tr><td><b>${esc(r.heading)}</b></td><td>${cell(r.a)}</td><td>${cell(r.b)}</td><td class="${cls}">${chg}</td></tr>`;
+  }).join("");
+  c.el.querySelector(".cmp-body").innerHTML =
+    `<table class="cmp"><tr><th>Metric</th><th>${esc(c.a)}</th><th>${esc(c.b)}</th><th>Change</th></tr>${rows}</table>
+     <div class="cmp-note">Every change is computed by the calculator, not generated. A figure that couldn't be verified against its own citation was excluded rather than compared.</div>`;
+  c.el.querySelectorAll(".cite").forEach(btn => {
+    btn.onclick = () => highlight(+btn.dataset.p, btn.dataset.b === "" ? null : +btn.dataset.b);
+  });
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+/* compare picker: list the other ready documents */
+async function refreshCompareOptions() {
+  const sel = $("compare-with");
+  const res = await (await fetch("/api/docs")).json();
+  const others = (res.docs || []).filter(d => d.doc_id !== state.doc && d.status === "ready");
+  sel.innerHTML = `<option value="">⇄ Compare…</option>` +
+    others.map(d => `<option value="${d.doc_id}">vs ${esc(d.name)}</option>`).join("");
+  sel.disabled = others.length === 0;
+}
+
+$("compare-with").onchange = (e) => {
+  const other = e.target.value;
+  e.target.value = "";
+  if (!other || state.busy || !state.ws || state.ws.readyState !== 1) return;
+  addMsg("user", "Compare these two filings");
+  state.busy = true; setAsk(false);
+  state.ws.send(JSON.stringify({ question: "compare", compare_with: other }));
+};
+
 $("brief-btn").onclick = () => {
   if (state.busy || !state.ws || state.ws.readyState !== 1) return;
   addMsg("user", "Analyze this filing"); state.busy = true; setAsk(false);
@@ -131,6 +193,10 @@ function connectWs() {
     else if (ev.type === "brief_step") briefStep(ev);
     else if (ev.type === "brief_section") briefSection(ev);
     else if (ev.type === "brief_done") { briefDone(ev); state.busy = false; setAsk(true); }
+    else if (ev.type === "compare_start") startCompare(ev);
+    else if (ev.type === "compare_step") compareStep(ev);
+    else if (ev.type === "compare_row") compareRow(ev);
+    else if (ev.type === "compare_done") { compareDone(ev); state.busy = false; setAsk(true); }
   };
 }
 

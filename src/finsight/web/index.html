@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>finsight — cited financial document agent</title>
-<link rel="stylesheet" href="/static/styles.css?v=2">
+<link rel="stylesheet" href="/static/styles.css?v=3">
 </head>
 <body>
 <header>
@@ -45,11 +45,14 @@
     </div>
     <form id="ask-form" class="ask">
       <button type="button" id="brief-btn" class="btn ghost" disabled title="Autonomous analyst brief">📋 Brief</button>
+      <select id="compare-with" class="btn ghost" disabled title="Compare against another loaded document">
+        <option value="">⇄ Compare…</option>
+      </select>
       <input id="q" autocomplete="off" placeholder="Ask about this document…" disabled>
       <button id="send" class="btn primary" disabled>Ask</button>
     </form>
   </section>
 </main>
-<script src="/static/app.js?v=2"></script>
+<script src="/static/app.js?v=3"></script>
 </body>
 </html>

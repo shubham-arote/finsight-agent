@@ -9,6 +9,7 @@ this; the collection schema already carries both vector types so no reindex is n
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from qdrant_client import QdrantClient, models
@@ -17,6 +18,8 @@ from ..config import settings
 from ..ingestion.chunking import Chunk
 from .embeddings import CohereEmbedder, get_embedder
 from .text import sparse_counts
+
+logger = logging.getLogger(__name__)
 
 
 class QdrantIndex:
@@ -57,8 +60,22 @@ class QdrantIndex:
     # ── write ───────────────────────────────────────────────────────────────
     def index_chunks(self, chunks: list[Chunk], batch: int = 128) -> int:
         self.ensure_collection()
-        dense_vecs = (self.embedder.embed_docs([c.embed_text for c in chunks])
-                      if self.embedder else None)
+        dense_vecs = None
+        if self.embedder:
+            try:
+                dense_vecs = self.embedder.embed_docs([c.embed_text for c in chunks])
+            except Exception as e:
+                # Key-optional degradation applies to embeddings too: a dead/exhausted
+                # embedding key must cost us dense retrieval, NOT the document. This
+                # was failing the whole ingest when a trial quota ran out.
+                logger.warning("dense embedding unavailable (%s: %s) — indexing "
+                               "sparse-only", type(e).__name__, str(e)[:120])
+                dense_vecs = None
+                # Sticky: once embeddings fail, stay sparse-only for this index. Mixing
+                # points that have a dense vector with points that don't corrupts the
+                # collection (local mode raises a numpy broadcast error on the next
+                # search) — consistency matters more than a few dense points.
+                self.embedder = None
         points = []
         for i, c in enumerate(chunks):
             idxs, vals = sparse_counts(c.embed_text)
