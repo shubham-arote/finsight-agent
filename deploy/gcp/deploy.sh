@@ -31,8 +31,10 @@ gcloud run deploy finsight-ingest --image="$IMAGE" --region="$REGION" \
   --memory=1Gi --max-instances=2 \
   --command=uvicorn --args=finsight.ingest_worker:app,--host,0.0.0.0,--port,8080 \
   --port=8080 \
-  --set-secrets="QDRANT_URL=QDRANT_URL:latest,QDRANT_API_KEY=QDRANT_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,COHERE_API_KEY=COHERE_API_KEY:latest" \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},QDRANT_COLLECTION=finsight_chunks"
+  --set-secrets="QDRANT_URL=QDRANT_URL:latest,QDRANT_API_KEY=QDRANT_API_KEY:latest,COHERE_API_KEY=COHERE_API_KEY:latest" \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},QDRANT_COLLECTION=finsight_chunks,\
+LLM_VISION=vertex_ai/gemini-2.5-flash,LLM_FAST=vertex_ai/gemini-2.5-flash,\
+LLM_ANSWER=vertex_ai/gemini-2.5-flash"
 
 echo "── 4. Pub/Sub push subscription -> worker (OIDC-authenticated)"
 WORKER_URL=$(gcloud run services describe finsight-ingest --region="$REGION" --format='value(status.url)')

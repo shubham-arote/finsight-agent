@@ -26,6 +26,10 @@ gcloud artifacts repositories create "$REPO" --repository-format=docker \
 echo "── 3. Upload bucket + OBJECT_FINALIZE -> Pub/Sub (the async ingestion trigger)"
 gcloud storage buckets create "gs://$BUCKET_NAME" --location="$REGION" 2>/dev/null || echo "bucket exists"
 gcloud pubsub topics create "$TOPIC_NAME" 2>/dev/null || echo "topic exists"
+# The GCS service agent is created lazily — asking for it is what brings it into
+# existence. Without this the IAM binding below fails with "service account does not
+# exist" on a fresh project.
+gcloud storage service-agent --project="$PROJECT_ID" >/dev/null 2>&1 || true
 # let the GCS service agent publish to the topic (week-3 step)
 PN=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \

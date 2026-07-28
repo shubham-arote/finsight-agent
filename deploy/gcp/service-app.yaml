@@ -41,7 +41,14 @@ spec:
               value: "memory"
             - name: GOOGLE_CLOUD_PROJECT
               value: "${PROJECT_ID}"
-            - name: LLM_VISION                        # Vertex via SA — no Gemini API key
+            # Every role runs on Vertex, authenticated by the attached service account:
+            # the deployed service holds NO model API keys at all. Scaling is a config
+            # change, and there is no key to leak, rotate, or exhaust.
+            - name: LLM_ANSWER
+              value: "vertex_ai/gemini-2.5-flash"
+            - name: LLM_FAST
+              value: "vertex_ai/gemini-2.5-flash"
+            - name: LLM_VISION
               value: "vertex_ai/gemini-2.5-flash"
             - name: LLM_JUDGE
               value: "vertex_ai/gemini-2.5-flash"
