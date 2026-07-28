@@ -20,8 +20,9 @@ import websockets
 
 async def main(base: str) -> None:
     async with httpx.AsyncClient(base_url=base, timeout=30) as client:
-        health = (await client.get("/healthz")).json()
-        print(f"healthz: {health}")
+        # /health, not /healthz: Cloud Run's queue-proxy swallows the latter
+        health = (await client.get("/health")).json()
+        print(f"health: {health}")
 
         doc = (await client.post("/load-sample")).json()
         assert "doc_id" in doc, f"load-sample failed: {doc}"

@@ -10,7 +10,7 @@ Endpoints
   GET  /doc/{id}/page/{n}.png   page render (on demand)
   GET  /doc/{id}/page/{n}       page blocks (bboxes for citation highlighting)
   WS   /ws/ask/{id}             streams the agent's node events + the cited answer
-  GET  /healthz                 liveness
+  GET  /health                  liveness (/healthz alias; Cloud Run reserves it)
 
 Run:  uv run uvicorn finsight.server:app --port 8000
 """
@@ -146,8 +146,12 @@ def api_traces(n: int = 20):
     return {"traces": obs.recent(n), "langfuse": obs.enabled()}
 
 
+# /health is the canonical route: Cloud Run's queue-proxy sidecar intercepts /healthz
+# before it reaches the container, so that path 404s in production while working
+# locally. /healthz stays as an alias for compose and existing tooling.
+@app.get("/health")
 @app.get("/healthz")
-def healthz():
+def health():
     return {"status": "ok", "docs": len(documents.DOCS),
             "cloud": documents.ROUTER.available("answer")}
 

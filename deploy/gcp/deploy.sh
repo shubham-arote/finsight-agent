@@ -11,7 +11,12 @@ export REGION="${REGION:-us-central1}"
 export TOPIC_NAME="${TOPIC_NAME:-finsight-ingest-topic}"
 export SA_EMAIL="${SA_EMAIL:-finsight-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
 export REPO="${REPO:-finsight}"
-export IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/finsight:latest"
+# Unique tag per deploy. With a fixed ":latest" tag the rendered service.yaml is
+# byte-identical between runs, so `gcloud run services replace` creates NO new revision
+# and silently keeps serving the old image — a redeploy that appears to succeed and
+# changes nothing. The git SHA (plus timestamp for dirty trees) forces a real rollout.
+TAG="$(git rev-parse --short HEAD 2>/dev/null || date +%s)-$(date +%H%M%S)"
+export IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/finsight:${TAG}"
 
 gcloud config set project "$PROJECT_ID"
 cd "$(dirname "$0")/../.."               # repo root
