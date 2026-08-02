@@ -61,14 +61,25 @@ async def main():
         h = None
         for _ in range(45):                    # the server may still be booting
             try:
-                h = (await client.get("/health")).json()
-                break
+                r = await client.get("/health")
+                if r.status_code == 200 and "status" in r.json():
+                    h = r.json()
+                    break
+                # A reachable server that doesn't know /health is running OLD code —
+                # usually a stale process still holding the port. Say so plainly
+                # instead of dying on a KeyError while reading a 404 body.
+                fail("a server is running on this port but it predates /health — it is "
+                     "stale.\n         Stop it, then start a fresh one:\n"
+                     "           PowerShell:  Get-NetTCPConnection -LocalPort 8000 -State Listen |"
+                     " ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n"
+                     "           then:        make demo")
+            except SystemExit:
+                raise
             except Exception:
                 await asyncio.sleep(2)
         if h is None:
-            fail("server not reachable. Start it first:  "
-                 "uv run uvicorn finsight.server:app --port 8000")
-        ok(f"server up (cloud={h['cloud']})")
+            fail("server not reachable. Start it first:  make demo")
+        ok(f"server up (cloud={h.get('cloud')})")
 
         status = (await client.get("/api/status")).json()
         model = status["models"]["answer"]
