@@ -59,7 +59,11 @@ nuke:
 	docker compose down -v
 	@echo "volumes wiped — next 'make up' starts a fresh collection"
 
+# Free the port first: a leftover server from an earlier run makes uvicorn exit with
+# "only one usage of each socket address", which reads like a code failure but is just
+# a stale process. Never let that surprise you two minutes before presenting.
 demo:
+	-@powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue }" 2>/dev/null || true
 	uv run uvicorn finsight.server:app --host 127.0.0.1 --port 8000
 
 demo-check:            # run in a SECOND terminal after `make demo`
