@@ -179,6 +179,19 @@ def test_number_matching_is_standalone_not_substring():
     assert contains_number("(4001) cost of sales", "4001")
 
 
+def test_verification_accepts_a_figure_from_the_parent_section_shown():
+    """tag_evidence prints each hit WITH its parent section, so a figure living
+    elsewhere in that section is legitimately cited. Checking only the block's own
+    content flagged correct answers (seen live on a deployed filing)."""
+    from finsight.agent.citations import check_claims
+    retrieved = [{"page": 3, "block_id": 9, "content": "compared to prior periods",
+                  "parent_text": "Total revenues for the quarter were $40.8 million."}]
+    claims = [{"text": "Total revenues were $40.8 million.",
+               "citations": [{"page": 3, "block_id": 9}]}]
+    checked, bad = check_claims(claims, retrieved)
+    assert bad == [] and checked[0]["verified"] is True
+
+
 def test_years_are_not_treated_as_claim_figures():
     """'2023' in 'Net income for the first quarter of 2023...' is a period label; it
     was being reported as an unverified figure and flagging clean answers."""

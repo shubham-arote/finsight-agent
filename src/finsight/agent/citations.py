@@ -172,11 +172,20 @@ def snap_citations(claims: list[dict], retrieved: list[dict]) -> list[dict]:
 # ── deterministic per-claim verification ────────────────────────────────────
 def check_claims(claims: list[dict], retrieved: list[dict],
                  computation: dict | None = None) -> tuple[list[dict], list[str]]:
-    """Set `verified` per claim: every figure in the claim must appear in the *cited*
-    blocks' content (not just anywhere in the context) or match the computation.
-    Returns (claims, all unverified figures)."""
-    by_block = {(c["page"], c.get("block_id")): _norm(c.get("content") or c.get("text") or "")
-                for c in retrieved}
+    """Set `verified` per claim: every figure in the claim must appear in the evidence
+    that claim cites, or match the computation. Returns (claims, all unverified figures).
+
+    "Evidence" is what the model was actually SHOWN for that entry — the block's content
+    *and* the parent section printed with it by `tag_evidence`. Checking only the block's
+    own content flags correct answers whenever the figure sits elsewhere in the same
+    section (seen live: a cited revenue figure reported as unverified). A verifier that
+    cries wolf teaches people to ignore it, which costs more than it saves.
+    """
+    def shown(c: dict) -> str:
+        return _norm(" ".join(filter(None, (c.get("content") or c.get("text") or "",
+                                            c.get("parent_text") or ""))))
+
+    by_block = {(c["page"], c.get("block_id")): shown(c) for c in retrieved}
     by_page: dict[int, list[str]] = {}
     for (page, _), text in by_block.items():
         by_page.setdefault(page, []).append(text)
