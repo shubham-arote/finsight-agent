@@ -32,6 +32,13 @@ class QdrantIndex:
         self.client = client
         self.collection = collection or settings.qdrant_collection
         self.embedder = get_embedder() if embedder == "auto" else embedder
+        # Term ids actually indexed. Qdrant's in-process mode maps sparse term ids onto
+        # dense positions in the collection's own vocabulary, and querying with a term
+        # it has never seen indexes past the end of that array ("index N is out of
+        # bounds for axis 0 with size N") — it took down a whole demo. Unknown terms
+        # have no postings and cannot affect scoring, so dropping them at query time is
+        # both the fix and semantically free.
+        self._vocab: set[int] = set()
 
     # ── schema ──────────────────────────────────────────────────────────────
     def ensure_collection(self) -> None:
@@ -79,6 +86,7 @@ class QdrantIndex:
         points = []
         for i, c in enumerate(chunks):
             idxs, vals = sparse_counts(c.embed_text)
+            self._vocab.update(idxs)          # queries are filtered to this at search time
             vector: dict = {"sparse": models.SparseVector(indices=idxs, values=vals)}
             if dense_vecs:
                 vector["dense"] = dense_vecs[i]
@@ -104,7 +112,11 @@ class QdrantIndex:
 
     def sparse_candidates(self, query: str, n: int = 30, doc_id: str | None = None) -> list[dict]:
         idxs, vals = sparse_counts(query)
-        if not idxs:
+        if self._vocab:                      # keep only terms this collection indexed
+            kept = [(i, v) for i, v in zip(idxs, vals, strict=True) if i in self._vocab]
+            idxs = [i for i, _ in kept]
+            vals = [v for _, v in kept]
+        if not idxs:                         # query shares no vocabulary with the corpus
             return []
         return self._query(models.SparseVector(indices=idxs, values=vals), "sparse", n, doc_id)
 

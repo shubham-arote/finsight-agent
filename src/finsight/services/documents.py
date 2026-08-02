@@ -1,7 +1,7 @@
 """documents.py — document lifecycle service.
 
-Owns the in-memory registry (`DOCS`), the shared artifact store, and the ONE shared
-Qdrant index (all docs in one collection; retrievers are doc_id-scoped). Upload -> ingest
+Owns the in-memory registry (`DOCS`), the shared artifact store, and a per-document
+Qdrant index (one collection per document; retrievers are doc_id-scoped). Upload -> ingest
 in a background thread with page-level progress; uploads are content-addressed (same
 bytes = same doc, ingestion is idempotent) and persisted, so a restart re-ingests from
 the page cache in seconds and re-indexes.
@@ -15,6 +15,7 @@ from pathlib import Path
 
 import fitz
 
+from ..config import settings
 from ..ingestion import ArtifactStore, IngestError, doc_hash, ingest
 from ..llm import LLMRouter
 from ..retrieval import QdrantIndex
@@ -22,7 +23,8 @@ from ..retrieval import QdrantIndex
 DOCS: dict[str, dict] = {}      # doc_id -> {name, status, page_count, parsed_pages, ...}
 
 STORE = ArtifactStore()
-INDEX = QdrantIndex()           # one collection; doc_id payload scopes retrieval
+# One Qdrant collection PER DOCUMENT (see doc_index) — sharing one collection
+# corrupts the in-process sparse index as the vocabulary grows.
 ROUTER = LLMRouter()
 
 
@@ -69,13 +71,30 @@ def _ingest_worker(doc_id: str, data: bytes) -> None:
 
     try:
         res = ingest(data, doc_id=doc_id, router=ROUTER, store=STORE, on_page=on_page)
-        INDEX.index_chunks(res.chunks)
+        doc_index(doc_id).index_chunks(res.chunks)
         d.update(status="ready", parser=res.parser, chunks=len(res.chunks),
                  pages_blocks=res.pages_blocks, parsed_pages=res.page_count)
     except IngestError as e:
         d.update(status="error", error=str(e))
     except Exception as e:                              # never leave a doc stuck "parsing"
         d.update(status="error", error=f"{type(e).__name__}: {e}")
+
+
+def doc_index(doc_id: str) -> QdrantIndex:
+    """One collection per document.
+
+    Retrieval in the app is always doc-scoped, so documents never need to share a
+    collection — and sharing one is actively harmful in Qdrant's in-process mode, where
+    the sparse index is sized to the vocabulary it was built with. Adding a second
+    document grew it past that bound and corrupted the collection mid-demo
+    ("index N is out of bounds for axis 0 with size N"). Per-document collections keep
+    each index immutable once built. Corpus-wide work (the benchmark) still builds its
+    own multi-document index explicitly.
+    """
+    d = DOCS[doc_id]
+    if d.get("index") is None:
+        d["index"] = QdrantIndex(collection=f"{settings.qdrant_collection}_{doc_id}")
+    return d["index"]
 
 
 def get_engine(doc_id: str):
@@ -85,7 +104,8 @@ def get_engine(doc_id: str):
     from ..retrieval import make_retriever
     d = DOCS[doc_id]
     if d.get("engine") is None:
-        d["engine"] = AgentEngine(make_retriever(INDEX, doc_id=doc_id), router=ROUTER)
+        d["engine"] = AgentEngine(make_retriever(doc_index(doc_id), doc_id=doc_id),
+                                  router=ROUTER)
     return d["engine"]
 
 
