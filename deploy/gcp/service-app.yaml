@@ -1,7 +1,7 @@
 # finsight app — Cloud Run multi-container service (week-4 sidecar pattern):
-#   agent (ingress :8000) ──localhost──▶ mcp sidecar (:3000) ──▶ Qdrant Cloud (shared)
-# The vector store is EXTERNAL on purpose: the Pub/Sub ingest worker is a separate
-# Cloud Run service, so an in-service sidecar could never receive what it indexes.
+#   agent (ingress :8000) ──localhost──▶ mcp sidecar (:3000) ──▶ qdrant sidecar (:6333)
+# Self-contained demo deployment. For async ingestion the store must be EXTERNAL:
+# the Pub/Sub worker is a separate service and cannot reach a sidecar (see deploy.md).
 # Every model role runs on VERTEX AI via the service account — no API keys in the image.
 # Deploy:  envsubst < service-app.yaml | gcloud run services replace - --region=$REGION
 # Requires env: PROJECT_ID, IMAGE (full Artifact Registry tag), SA_EMAIL
@@ -18,7 +18,7 @@ spec:
       annotations:
         run.googleapis.com/execution-environment: gen2
         autoscaling.knative.dev/maxScale: "2"          # cost guard
-        run.googleapis.com/container-dependencies: '{"agent":["mcp"]}'
+        run.googleapis.com/container-dependencies: '{"agent":["mcp"],"mcp":["qdrant"]}'
         # keep CPU allocated between requests so background work (trace export,
         # in-flight background ingest threads) can finish — reference-course pattern
         run.googleapis.com/cpu-throttling: "false"
@@ -32,13 +32,12 @@ spec:
           env:
             - name: MCP_SERVER_URL
               value: "http://localhost:3000/mcp/"
-            # Shared Qdrant Cloud: the ingest worker is a SEPARATE Cloud Run service
-            # and cannot reach an in-service sidecar, so async ingestion only lands in
-            # the collection the app queries if the store is external.
+            # Self-contained demo: Qdrant runs as a sidecar in this service. Documents
+            # uploaded through the UI are indexed and queried entirely in-service.
+            # PRODUCTION / async ingestion: point QDRANT_URL at Qdrant Cloud instead —
+            # the Pub/Sub worker is a separate service and cannot reach a sidecar.
             - name: QDRANT_URL
-              valueFrom: {secretKeyRef: {name: QDRANT_URL, key: latest}}
-            - name: QDRANT_API_KEY
-              valueFrom: {secretKeyRef: {name: QDRANT_API_KEY, key: latest}}
+              value: "http://localhost:6333"
             - name: QDRANT_COLLECTION
               value: "finsight_chunks"
             - name: CHECKPOINT
@@ -87,13 +86,12 @@ spec:
           env:
             - name: MCP_PORT
               value: "3000"
-            # Shared Qdrant Cloud: the ingest worker is a SEPARATE Cloud Run service
-            # and cannot reach an in-service sidecar, so async ingestion only lands in
-            # the collection the app queries if the store is external.
+            # Self-contained demo: Qdrant runs as a sidecar in this service. Documents
+            # uploaded through the UI are indexed and queried entirely in-service.
+            # PRODUCTION / async ingestion: point QDRANT_URL at Qdrant Cloud instead —
+            # the Pub/Sub worker is a separate service and cannot reach a sidecar.
             - name: QDRANT_URL
-              valueFrom: {secretKeyRef: {name: QDRANT_URL, key: latest}}
-            - name: QDRANT_API_KEY
-              valueFrom: {secretKeyRef: {name: QDRANT_API_KEY, key: latest}}
+              value: "http://localhost:6333"
             - name: QDRANT_COLLECTION
               value: "finsight_chunks"
             - name: COHERE_API_KEY
@@ -102,5 +100,17 @@ spec:
             limits: {memory: 512Mi, cpu: "1"}
           startupProbe:                       # required: agent depends_on this container
             tcpSocket: {port: 3000}
+            periodSeconds: 5
+            failureThreshold: 30
+
+        # vector store sidecar — ephemeral across scale-to-zero, which is fine for a
+        # demo: documents are uploaded live. Swap for Qdrant Cloud when the ingest
+        # worker must share the index.
+        - name: qdrant
+          image: qdrant/qdrant:latest
+          resources:
+            limits: {memory: 512Mi, cpu: "1"}
+          startupProbe:
+            tcpSocket: {port: 6333}
             periodSeconds: 5
             failureThreshold: 30

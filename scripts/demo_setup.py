@@ -35,7 +35,9 @@ def ok(msg):
 
 
 def fail(msg):
-    print(f"\n  ✗ {msg}\n\nDEMO IS NOT READY — fix this before presenting.")
+    # ASCII only: Windows consoles are cp1252 and a unicode mark here would crash the
+    # very message that tells you what is broken.
+    print(f"\n  [FAIL] {msg}\n\nDEMO IS NOT READY - fix this before presenting.")
     sys.exit(1)
 
 
