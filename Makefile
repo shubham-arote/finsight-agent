@@ -28,7 +28,8 @@ help:
 	@echo "  make nuke      — stop + wipe volumes (fresh Qdrant/collection — fixes schema drift)"
 	@echo ""
 	@echo "No-Docker demo:"
-	@echo "  make demo      — uvicorn on :8010 with your .env (cloud mode if keys present)"
+	@echo "  make demo       — start the demo server on :8000"
+	@echo "  make demo-check — preflight: load every demo doc + ask one real question"
 	@echo ""
 	@echo "  make vertex    — preflight the Vertex AI path (project, ADC, a real call)"
 	@echo ""
@@ -59,7 +60,10 @@ nuke:
 	@echo "volumes wiped — next 'make up' starts a fresh collection"
 
 demo:
-	uv run uvicorn finsight.server:app --host 127.0.0.1 --port 8010
+	uv run uvicorn finsight.server:app --host 127.0.0.1 --port 8000
+
+demo-check:            # run in a SECOND terminal after `make demo`
+	uv run python scripts/demo_setup.py
 
 vertex:
 	uv run python scripts/check_vertex.py
@@ -82,4 +86,4 @@ evals-ratchet:
 bench:
 	uv run python -X utf8 -m evals.run_benchmark --data-dir data/finragbench_v --sample 25 --doc-scoped
 
-.PHONY: help up verify logs down nuke demo vertex gate eval evals-gate evals-gate-judge evals-ratchet bench
+.PHONY: help up verify logs down nuke demo demo-check vertex gate eval evals-gate evals-gate-judge evals-ratchet bench
